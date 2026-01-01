@@ -1,6 +1,6 @@
 # BC Container Manager
 
-> Native Windows desktop application for managing Business Central Docker containers with AI-powered troubleshooting and one-click deployment.
+> Electron + TypeScript desktop app for Dynamics 365 Business Central Docker containers with Claude AI troubleshooting, one-click deployment, and PowerShell integration.
 
 [![Release](https://img.shields.io/github/v/release/azullus/bc-docker-manager?logo=github)](https://github.com/azullus/bc-docker-manager/releases)
 [![Electron](https://img.shields.io/badge/Electron-Latest-47848F?logo=electron)](https://www.electronjs.org/)
