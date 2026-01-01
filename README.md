@@ -405,8 +405,13 @@ Fallback API routes for non-Electron usage:
 
 ## 🔗 Related Projects
 
-- **[cosmicbytez-ops-toolkit](https://github.com/azullus/cosmicbytez-ops-toolkit)** - PowerShell scripts including Install-BC-Helper.ps1
-- **[docker-infrastructure](https://github.com/azullus/docker-infrastructure)** - Self-hosted infrastructure stacks
+### PowerShell & Automation
+- **[cosmicbytez-ops-toolkit](https://github.com/azullus/cosmicbytez-ops-toolkit)** - PowerShell automation suite with Install-BC-Helper.ps1 and Docker management scripts
+- **[CosmicPing](https://github.com/azullus/CosmicPing)** - .NET 8 C# network diagnostic tool for IT operations
+
+### Infrastructure & Deployment
+- **[docker-infrastructure](https://github.com/azullus/docker-infrastructure)** - Docker Compose IaC for self-hosted services with Traefik and monitoring
+- **[cosmicbytez-homelab](https://github.com/azullus/cosmicbytez-homelab)** - Homelab documentation and security research
 
 ---
 
