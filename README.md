@@ -2,10 +2,14 @@
 
 > Native Windows desktop application for managing Business Central Docker containers with AI-powered troubleshooting and one-click deployment.
 
+[![Release](https://img.shields.io/github/v/release/azullus/bc-docker-manager?logo=github)](https://github.com/azullus/bc-docker-manager/releases)
 [![Electron](https://img.shields.io/badge/Electron-Latest-47848F?logo=electron)](https://www.electronjs.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/github/license/azullus/bc-docker-manager)](LICENSE.txt)
+[![Stars](https://img.shields.io/github/stars/azullus/bc-docker-manager?style=flat)](https://github.com/azullus/bc-docker-manager/stargazers)
+[![Issues](https://img.shields.io/github/issues/azullus/bc-docker-manager)](https://github.com/azullus/bc-docker-manager/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/azullus/bc-docker-manager)](https://github.com/azullus/bc-docker-manager/commits/main)
 
 **Desktop app for:**
 - 🐳 Business Central container lifecycle management
