@@ -654,7 +654,10 @@ npm run electron:dev
 
 ### Infrastructure & Deployment
 - **[docker-infrastructure](https://github.com/azullus/docker-infrastructure)** - Docker Compose IaC for self-hosted services with Traefik and monitoring
-- **[cosmicbytez-homelab](https://github.com/azullus/cosmicbytez-homelab)** - Homelab documentation and security research
+- **[cosmicbytez-homelab](https://github.com/azullus/cosmicbytez-homelab)** - Home lab infrastructure and media server documentation
+
+### Security Operations
+- **[cosmicbytez-secops](https://github.com/azullus/cosmicbytez-secops)** - Security operations, PNPT training, and ethical hacking resources
 
 ---
 
@@ -664,4 +667,4 @@ MIT License - See [LICENSE.txt](LICENSE.txt) for details.
 
 ---
 
-**Built with ❤️ for Business Central DevOps | Windows Desktop | Docker Orchestration**
+**Built by CosmicBytez for Business Central DevOps | Windows Desktop | Docker Orchestration**
