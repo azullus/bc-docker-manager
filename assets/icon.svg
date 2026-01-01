@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#1e3a5f"/>
+
+  <!-- Docker whale body -->
+  <ellipse cx="256" cy="320" rx="180" ry="80" fill="#0db7ed"/>
+
+  <!-- Container blocks on whale -->
+  <rect x="100" y="240" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="160" y="240" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="220" y="240" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="280" y="240" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="340" y="240" width="50" height="40" rx="4" fill="#fff"/>
+
+  <rect x="130" y="190" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="190" y="190" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="250" y="190" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="310" y="190" width="50" height="40" rx="4" fill="#fff"/>
+
+  <rect x="160" y="140" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="220" y="140" width="50" height="40" rx="4" fill="#fff"/>
+  <rect x="280" y="140" width="50" height="40" rx="4" fill="#fff"/>
+
+  <!-- BC text -->
+  <text x="256" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#fff">BC</text>
+
+  <!-- Whale tail -->
+  <path d="M80 300 Q40 260 60 220 Q80 260 80 300" fill="#0db7ed"/>
+</svg>

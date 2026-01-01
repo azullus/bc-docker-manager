@@ -1,0 +1,55 @@
+# Electron Builder Configuration
+# https://www.electron.build/configuration/configuration
+
+appId: com.cosmicbytez.bc-container-manager
+productName: BC Container Manager
+copyright: Copyright © 2024 CosmicBytez
+
+# Skip native module rebuilding (we don't use SSH features from dockerode)
+npmRebuild: false
+
+# Directories
+directories:
+  output: dist4
+  buildResources: assets
+
+# Files to include in the build
+files:
+  - electron/**/*
+  - out/**/*
+  - assets/**/*
+  - package.json
+
+# Extra resources (not bundled, just copied)
+extraResources:
+  - from: scripts/
+    to: scripts/
+    filter:
+      - "**/*"
+
+# Windows configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+# NSIS installer configuration
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: BC Container Manager
+  license: LICENSE.txt
+
+# Portable executable (no install needed)
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+
+# ASAR archive - bundle app files
+asar: true
+asarUnpack:
+  - node_modules/dockerode/**/*
+  - node_modules/@anthropic-ai/**/*

@@ -1,0 +1,60 @@
+{
+  "name": "bc-container-manager",
+  "version": "1.0.0",
+  "description": "Business Central Docker Container Management Desktop App",
+  "private": true,
+  "main": "electron/main.js",
+  "author": "CosmicBytez",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:electron": "cross-env ELECTRON_BUILD=1 next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build:electron && electron-builder",
+    "electron:build:win": "npm run build:electron && electron-builder --win",
+    "electron:build:portable": "npm run build:electron && electron-builder --win portable",
+    "electron:pack": "npm run build:electron && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "ai": "^2.2.37",
+    "date-fns": "^3.6.0",
+    "dockerode": "^4.0.2",
+    "lucide-react": "^0.562.0",
+    "next": "14.2.20",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^14.3.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/dockerode": "^3.3.31",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.27",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "electron": "^33.4.0",
+    "electron-builder": "^24.13.3",
+    "cross-env": "^7.0.3",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.7.3",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "extends": "electron-builder.yml"
+  }
+}

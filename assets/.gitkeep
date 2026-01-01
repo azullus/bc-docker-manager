@@ -1,0 +1,13 @@
+# Placeholder for app icons
+#
+# Required files for production build:
+# - icon.ico (256x256 Windows icon)
+# - icon.png (512x512 PNG for macOS/Linux)
+# - icon.icns (macOS icon bundle)
+#
+# You can generate these from a single PNG using:
+# - https://icoconvert.com/ (for .ico)
+# - https://iconverticons.com/ (for .icns)
+#
+# Or use electron-icon-builder:
+# npx electron-icon-builder --input=./assets/icon.png --output=./assets
