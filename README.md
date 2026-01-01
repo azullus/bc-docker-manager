@@ -388,6 +388,249 @@ Fallback API routes for non-Electron usage:
 
 ---
 
+## 🔧 Troubleshooting
+
+### Application Won't Start
+
+**Issue**: Double-clicking the executable shows error or nothing happens
+
+**Solutions**:
+
+1. **Missing Dependencies**
+   ```powershell
+   # Check Node.js version
+   node --version  # Should be 18.0.0 or higher
+
+   # Check if Docker Desktop is running
+   docker info
+   ```
+   - **Fix**: Install [Node.js 20+](https://nodejs.org/) or start Docker Desktop
+
+2. **Electron Build Issues**
+   ```bash
+   # Clear build cache
+   rm -rf node_modules .next dist
+   npm install
+   npm run build
+   ```
+
+3. **Port Conflict (Dev Mode)**
+   - Default port 3000 may be in use
+   - **Fix**: Kill process or change port in `package.json`
+   ```bash
+   # Find process using port 3000
+   netstat -ano | findstr :3000
+   # Kill process (replace PID)
+   taskkill /PID <process_id> /F
+   ```
+
+### Docker Connection Issues
+
+**Issue**: "Cannot connect to Docker daemon" error
+
+**Solutions**:
+
+1. **Docker Desktop Not Running**
+   ```bash
+   # Check Docker status
+   docker ps
+
+   # If error, start Docker Desktop
+   # Windows: Start menu → Docker Desktop
+   ```
+
+2. **Docker Pipe Permissions**
+   ```powershell
+   # Test pipe access
+   [System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String docker
+
+   # Should show: docker_engine
+   ```
+   - **Fix**: Restart Docker Desktop
+   - **Fix**: Add user to docker-users group (Windows)
+
+3. **WSL2 Backend Issues**
+   - If using WSL2 backend
+   - **Fix**: `wsl --update` and restart Docker
+
+### Container Management Errors
+
+**Issue**: Containers not appearing in dashboard
+
+**Solutions**:
+
+1. **Filter Pattern Mismatch**
+   - App filters for containers starting with `bcserver-`
+   - **Fix**: Rename containers to match pattern:
+   ```powershell
+   docker rename old-name bcserver-new-name
+   ```
+
+2. **Container Status Polling Failed**
+   - Check Docker API accessibility
+   ```bash
+   docker ps --format "{{.Names}}"
+   ```
+   - If works in CLI but not app, check IPC handlers
+
+3. **Refresh Dashboard**
+   - Click refresh icon or restart app
+   - **Keyboard shortcut**: F5 (if implemented)
+
+### AI Troubleshooting Not Working
+
+**Issue**: AI chat returns errors or no response
+
+**Solutions**:
+
+1. **Missing API Key**
+   - Go to Settings → Enter Anthropic API key
+   - Get key from [Anthropic Console](https://console.anthropic.com/)
+
+2. **API Key Invalid**
+   ```bash
+   # Test API key manually
+   curl https://api.anthropic.com/v1/messages \
+     -H "x-api-key: YOUR_KEY" \
+     -H "anthropic-version: 2023-06-01"
+   ```
+   - **Fix**: Regenerate key in Anthropic Console
+
+3. **Rate Limiting**
+   - Anthropic free tier: Limited requests/minute
+   - **Fix**: Wait 60 seconds or upgrade plan
+
+4. **Network Issues**
+   - Corporate firewall may block api.anthropic.com
+   - **Fix**: Use VPN or whitelist domain
+
+### PowerShell Script Failures
+
+**Issue**: Install-BC-Helper.ps1 fails or doesn't run
+
+**Solutions**:
+
+1. **Execution Policy**
+   ```powershell
+   # Check current policy
+   Get-ExecutionPolicy
+
+   # Allow script execution (as Admin)
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   ```
+
+2. **Missing BcContainerHelper Module**
+   ```powershell
+   # Install module
+   Install-Module BcContainerHelper -Force
+
+   # Verify installation
+   Get-Module BcContainerHelper -ListAvailable
+   ```
+
+3. **Script Path Issues**
+   - Scripts bundled in `scripts/` folder
+   - **Fix**: Use absolute paths in IPC calls
+
+4. **Admin Privileges Required**
+   - Some Docker operations need admin
+   - **Fix**: Run app as administrator (right-click → Run as administrator)
+
+### Backup/Restore Issues
+
+**Issue**: Backup creation fails or restore doesn't work
+
+**Solutions**:
+
+1. **Backup Path Not Writable**
+   ```powershell
+   # Test backup directory permissions
+   Test-Path "C:\BC-Backups" -PathType Container
+   New-Item -Path "C:\BC-Backups\test.txt" -ItemType File
+   ```
+   - **Fix**: Choose different backup location in Settings
+
+2. **Container Not Running**
+   - Cannot backup stopped container
+   - **Fix**: Start container first, then backup
+
+3. **Insufficient Disk Space**
+   ```powershell
+   # Check free space
+   Get-PSDrive C | Select-Object Used,Free
+   ```
+   - **Fix**: Free up space or choose different drive
+
+4. **Restore Overwrites Warning**
+   - App should warn before overwriting
+   - **Workaround**: Manually rename container before restore
+
+### Build Errors
+
+**Issue**: `npm run build` or `npm run electron:build` fails
+
+**Solutions**:
+
+1. **Dependency Issues**
+   ```bash
+   # Clear npm cache
+   npm cache clean --force
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+2. **TypeScript Errors**
+   ```bash
+   # Run type check
+   npx tsc --noEmit
+
+   # Common fix: Update types
+   npm install --save-dev @types/node@latest @types/react@latest
+   ```
+
+3. **Next.js Build Fails**
+   ```bash
+   # Check for syntax errors
+   npm run lint
+
+   # Build with verbose output
+   npm run build -- --debug
+   ```
+
+4. **Electron Builder Fails**
+   - **Windows**: Requires `electron-builder` dependencies
+   ```bash
+   # Install Windows build tools
+   npm install --global windows-build-tools
+   ```
+
+### Logs and Debugging
+
+**Check Application Logs:**
+```bash
+# Electron dev console
+# Press F12 in app to open DevTools
+
+# Check Next.js logs
+npm run dev  # Shows server-side errors
+
+# Check Electron main process logs
+# Look in terminal where app was launched
+```
+
+**Enable Verbose Logging:**
+```bash
+# Set environment variable before launching
+$env:DEBUG="*"
+npm run electron:dev
+```
+
+**Common Log Locations:**
+- Electron logs: `%APPDATA%/bc-container-manager/logs/`
+- Backup logs: Check backup directory for `.log` files
+
+---
+
 ## 📦 Technologies
 
 | Layer | Technology |
