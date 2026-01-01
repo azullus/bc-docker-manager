@@ -1,159 +1,415 @@
-# BC Docker Manager
+# BC Container Manager
 
-A Next.js web application for managing Business Central Docker containers with AI-powered troubleshooting assistance.
+> Native Windows desktop application for managing Business Central Docker containers with AI-powered troubleshooting and one-click deployment.
 
-## Features
+[![Electron](https://img.shields.io/badge/Electron-Latest-47848F?logo=electron)](https://www.electronjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
 
-- **Container Dashboard** - View and manage all BC Docker containers
-- **Container Controls** - Start, stop, restart containers with one click
-- **Real-time Logs** - View container logs with search and filtering
-- **Backup Management** - Create and manage database backups
-- **AI Troubleshooting** - Get help diagnosing issues with Claude AI
+**Desktop app for:**
+- 🐳 Business Central container lifecycle management
+- 📊 Real-time log viewing and diagnostics
+- 💾 Automated backup operations
+- 🤖 AI-powered troubleshooting (Claude API)
+- ⚡ One-click deployment via Install-BC-Helper.ps1
 
-## Requirements
+---
 
-- Node.js 18+
-- Docker Desktop or Docker Engine running
-- BC containers following the `bcserver-*` naming convention
-- (Optional) Anthropic API key for AI troubleshooting
+## 🚀 Quick Start
 
-## Installation
+### Prerequisites
+
+| Component | Requirement |
+|-----------|-------------|
+| **OS** | Windows 10/11 |
+| **Docker** | Docker Desktop for Windows |
+| **Node.js** | 18+ (for development) |
+| **PowerShell** | 7.0+ (bundled scripts) |
+| **Optional** | Anthropic API key (AI features) |
+
+### Download & Install
+
+**Option 1: Run Installer** (Recommended)
+```bash
+# Download from GitHub Releases
+# Run: BC Container Manager-Setup-1.0.0.exe
+# Follow installation wizard
+```
+
+**Option 2: Portable Executable**
+```bash
+# Download: BC Container Manager-Portable-1.0.0.exe
+# Run directly without installation
+```
+
+### Development Setup
 
 ```bash
+# Clone repository
+git clone https://github.com/azullus/bc-docker-manager.git
+cd bc-docker-manager
+
 # Install dependencies
 npm install
 
-# Configure environment
-cp .env.example .env.local
-# Edit .env.local with your settings
+# Run Electron app in development mode
+npm run electron:dev
 
-# Run development server
+# Or run as web app only
 npm run dev
 ```
 
-## Configuration
+---
 
-Create a `.env.local` file with the following variables:
+## 🏗️ Architecture
 
-```env
-# Docker socket path (default for Windows Docker Desktop)
-DOCKER_HOST=/var/run/docker.sock
-
-# Anthropic API key for AI troubleshooting (optional)
-ANTHROPIC_API_KEY=your-api-key-here
-
-# Backup directory
-BACKUP_ROOT=C:\BCBackups
-```
-
-## Project Structure
+### Electron Desktop App
 
 ```
-BC-Docker-Manager/
-├── app/
-│   ├── api/
-│   │   ├── containers/route.ts    # Container list & actions
-│   │   ├── logs/route.ts          # Container log streaming
-│   │   ├── backups/route.ts       # Backup management
-│   │   └── ai/route.ts            # AI chat endpoint
-│   ├── dashboard/page.tsx         # Main container dashboard
-│   ├── containers/[id]/page.tsx   # Container detail view
-│   ├── backups/page.tsx           # Backup management page
-│   ├── troubleshoot/page.tsx      # AI troubleshooting chat
-│   ├── layout.tsx                 # App layout with sidebar
-│   └── globals.css                # Global styles
-├── components/
-│   ├── Sidebar.tsx                # Navigation sidebar
-│   ├── ContainerCard.tsx          # Container display card
-│   ├── LogViewer.tsx              # Log viewer with filtering
-│   └── AIChat.tsx                 # AI chat interface
-├── lib/
-│   ├── docker-api.ts              # Docker Engine API client
-│   ├── ai-client.ts               # Claude API integration
-│   └── types.ts                   # TypeScript definitions
-└── README.md
+┌─────────────────────────────────────────┐
+│         Electron Main Process           │
+│  ┌─────────────────────────────────┐   │
+│  │   electron/main.js              │   │
+│  │   - Window management           │   │
+│  │   - IPC handlers                │   │
+│  │   - PowerShell execution        │   │
+│  └─────────────────────────────────┘   │
+│              ↕ IPC                      │
+│  ┌─────────────────────────────────┐   │
+│  │   Renderer Process (Next.js)    │   │
+│  │   - React components            │   │
+│  │   - UI/UX                        │   │
+│  │   - Client-side logic           │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+         ↕                    ↕
+   Docker API          PowerShell Scripts
 ```
 
-## Usage
+**Key Files:**
+- `electron/main.js` - Electron entry point, window creation
+- `electron/preload.js` - Secure IPC bridge
+- `electron/ipc-handlers.js` - Backend operations (Docker, backups, AI)
+- `lib/electron-api.ts` - Unified API for renderer process
 
-### Dashboard
+### Dual-Mode Support
 
-The dashboard displays all BC Docker containers with:
-- Container status (running, stopped, etc.)
-- Quick actions (start, stop, restart)
-- Resource usage statistics
-- Links to container details
+The app works in two modes:
 
-### Container Details
+1. **Electron Mode** (Desktop) - Uses IPC for Docker/PowerShell operations
+2. **Web Mode** (Fallback) - Uses Next.js API routes via fetch
 
-Click on a container to view:
-- Full container information
-- Port mappings
-- Resource usage (CPU, memory)
-- Real-time log viewer
-- Backup creation
+---
+
+## ✨ Features
+
+### Container Management
+
+- **Dashboard View** - All BC containers at a glance
+- **Status Monitoring** - Real-time container state
+- **Quick Actions** - Start, stop, restart, remove with one click
+- **Port Mappings** - View exposed ports and services
+- **Resource Stats** - CPU, memory, network usage
+
+### Log Viewer
+
+- **Real-time Streaming** - Live container logs
+- **Search & Filter** - Find specific log entries
+- **Export** - Save logs to file for analysis
+- **Color-coded** - Error/warning/info highlighting
 
 ### Backup Management
 
-The backups page allows you to:
-- View all existing backups
-- Create new backups from running containers
-- Delete old backups
-- See backup sizes and dates
+- **Automated Backups** - Schedule container backups
+- **Backup Browser** - View all existing backups
+- **Restore Operations** - Restore from backup
+- **Retention Policy** - Auto-delete old backups
+- **Size Tracking** - Monitor backup disk usage
 
 ### AI Troubleshooting
 
-Get help with common BC Docker issues:
-- Container startup failures
-- Performance problems
-- License issues
-- Extension deployment errors
+Powered by Claude API:
+- Diagnose container startup failures
+- Suggest fixes for common BC issues
+- License troubleshooting assistance
+- Extension deployment guidance
+- Performance optimization tips
 
-The AI assistant has context about Business Central Docker operations and can provide targeted assistance.
+**Context-aware**: AI has knowledge of Business Central Docker architecture and common issues.
 
-## Container Naming Convention
+### One-Click Deployment
 
-This application looks for Docker containers matching the pattern `bcserver-*`. Containers should be created using:
+Integrated PowerShell deployment:
+```powershell
+# Bundled script: scripts/Install-BC-Helper.ps1
+# Deploys BC containers with:
+- Automatic version selection
+- License import
+- Port configuration
+- Database initialization
+```
 
-- [BcContainerHelper](https://github.com/microsoft/navcontainerhelper) PowerShell module
-- The companion `Install-BC-Helper.ps1` or `Install-BC-Latest.ps1` scripts
+---
 
-## API Endpoints
+## 📂 Project Structure
+
+```
+bc-docker-manager/
+├── electron/
+│   ├── main.js              # Electron main process
+│   ├── preload.js           # IPC bridge (secure)
+│   ├── ipc-handlers.js      # Backend operations
+│   └── rag-helper.js        # RAG integration for offline AI
+│
+├── app/                     # Next.js App Router
+│   ├── dashboard/page.tsx   # Container list view
+│   ├── create/page.tsx      # Container creation wizard
+│   ├── backups/page.tsx     # Backup management
+│   ├── troubleshoot/page.tsx # AI chat interface
+│   ├── settings/page.tsx    # App configuration
+│   └── layout.tsx           # Main layout with sidebar
+│
+├── components/
+│   ├── ContainerCard.tsx    # Container display component
+│   ├── LogViewer.tsx        # Real-time log viewer
+│   ├── AIChat.tsx           # AI chat interface
+│   ├── DeploymentModal.tsx  # Container creation dialog
+│   ├── Sidebar.tsx          # Navigation menu
+│   └── Providers.tsx        # React context providers
+│
+├── lib/
+│   ├── electron-api.ts      # Unified API layer
+│   ├── docker-api.ts        # Docker Engine API (web mode)
+│   ├── ai-client.ts         # Claude API integration
+│   ├── types.ts             # TypeScript interfaces
+│   └── deployment-context.tsx # Deployment state management
+│
+├── scripts/
+│   └── Install-BC-Helper.ps1 # Bundled deployment script
+│
+├── electron-builder.yml     # Electron build configuration
+├── package.json             # Dependencies and scripts
+└── README.md                # This file
+```
+
+---
+
+## 🔧 Configuration
+
+### Application Settings
+
+Settings stored in: `%APPDATA%/bc-container-manager/settings.json`
+
+```json
+{
+  "anthropicApiKey": "sk-ant-...",
+  "backupRoot": "C:\\BCBackups",
+  "autoRefreshInterval": 5000,
+  "defaultContainerPrefix": "bcserver"
+}
+```
+
+### Environment Variables (Development)
+
+Create `.env.local` for development:
+
+```env
+# Anthropic API key (optional, for AI features)
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Backup directory
+BACKUP_ROOT=C:\BCBackups
+
+# Docker socket (default for Windows)
+DOCKER_HOST=//./pipe/docker_engine
+```
+
+---
+
+## 🎯 Usage
+
+### Creating a Container
+
+1. Click **"New Container"** button
+2. Select BC version (Latest, LTS, Specific)
+3. Configure:
+   - Container name
+   - License file (optional)
+   - Ports (Web Client, SOAP, OData, DEV)
+   - Authentication mode
+4. Click **"Deploy"** to run Install-BC-Helper.ps1
+5. Monitor deployment progress in real-time
+
+### Managing Containers
+
+**Start/Stop:**
+- Click power icon on container card
+- Or use bulk actions from dashboard
+
+**View Logs:**
+- Click container name → Logs tab
+- Search for errors or specific text
+- Export to file for analysis
+
+**Create Backup:**
+- Container Details → Backups
+- Click "Create Backup"
+- Specify backup name and location
+
+### AI Troubleshooting
+
+1. Navigate to **Troubleshoot** page
+2. Describe your issue in chat
+3. AI provides context-aware suggestions
+4. Follow recommended fixes
+5. Run suggested PowerShell commands if needed
+
+**Example queries:**
+- "Container won't start after restart"
+- "Getting license error on login"
+- "Web client shows 404 error"
+- "How do I import a BC extension?"
+
+---
+
+## 🛠️ Development
+
+### Available Scripts
+
+```bash
+# Development (web only)
+npm run dev              # Start Next.js dev server
+
+# Development (Electron)
+npm run electron:dev     # Start Electron + Next.js
+
+# Building
+npm run build            # Build Next.js static export
+npm run electron:build:win      # Build Windows installer
+npm run electron:build:portable # Build portable .exe
+
+# Testing
+npm test                 # Run Jest tests
+npm run test:coverage    # With coverage report
+npm run lint             # ESLint validation
+```
+
+### Build Output
+
+After running `npm run electron:build:win`:
+
+```
+dist/
+├── BC Container Manager-Setup-1.0.0.exe    # Installer (147 MB)
+├── BC Container Manager-Portable-1.0.0.exe # Portable (145 MB)
+└── win-unpacked/                            # Unpacked app files
+```
+
+---
+
+## 🐳 Container Naming Convention
+
+The app filters for containers matching: `^bcserver`
+
+**Compatible naming:**
+- `bcserver-dev`
+- `bcserver-production`
+- `bcserver-latest-v23`
+- `bcserver-sandbox`
+
+**Create with BcContainerHelper:**
+```powershell
+New-BcContainer -containerName "bcserver-dev" `
+    -artifactUrl (Get-BcArtifactUrl -type Sandbox -version "23.0") `
+    -accept_eula
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm test -- --watch
+
+# Coverage report
+npm run test:coverage
+```
+
+**Test suites:**
+- `__tests__/components/` - React component tests
+- `__tests__/lib/` - Utility function tests
+
+---
+
+## 📡 API Reference
+
+### IPC Channels (Electron Mode)
+
+| Channel | Description | Parameters |
+|---------|-------------|------------|
+| `docker:list` | List containers | - |
+| `docker:start` | Start container | `containerId` |
+| `docker:stop` | Stop container | `containerId` |
+| `docker:logs` | Get logs | `containerId, tail` |
+| `powershell:run` | Execute script | `scriptPath, args` |
+| `backup:create` | Create backup | `containerId, path` |
+| `ai:chat` | Send AI message | `message, history` |
+
+### REST Endpoints (Web Mode)
+
+Fallback API routes for non-Electron usage:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/containers` | GET | List all BC containers |
-| `/api/containers` | POST | Perform container action (start/stop/restart/remove) |
-| `/api/logs` | GET | Get container logs |
-| `/api/backups` | GET | List all backups |
-| `/api/backups` | POST | Create new backup |
-| `/api/backups` | DELETE | Delete a backup |
-| `/api/ai` | POST | Send message to AI assistant |
+| `/api/containers` | GET | List all containers |
+| `/api/containers` | POST | Container action |
+| `/api/logs` | GET | Container logs |
+| `/api/backups` | GET | List backups |
+| `/api/backups` | POST | Create backup |
+| `/api/ai` | POST | AI chat |
 
-## Development
+---
 
-```bash
-# Start development server
-npm run dev
+## 🔒 Security
 
-# Build for production
-npm run build
+- **IPC Isolation**: Context isolation enabled in Electron
+- **No eval()**: Secure script execution via spawn
+- **API Keys**: Stored encrypted in %APPDATA%
+- **Docker Socket**: Local access only (no remote exposure)
 
-# Start production server
-npm start
+---
 
-# Lint code
-npm run lint
-```
+## 📦 Technologies
 
-## Technology Stack
+| Layer | Technology |
+|-------|-----------|
+| **Desktop** | Electron Latest |
+| **Framework** | Next.js 14 (App Router) |
+| **Language** | TypeScript 5 |
+| **Styling** | Tailwind CSS 3 |
+| **Docker API** | Native IPC to PowerShell/Docker |
+| **AI** | Anthropic Claude API |
+| **Build** | electron-builder |
+| **Testing** | Jest + React Testing Library |
 
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS
-- **Docker API**: dockerode
-- **AI**: Anthropic Claude API
-- **Icons**: Lucide React
+---
 
-## License
+## 🔗 Related Projects
 
-MIT
+- **[cosmicbytez-ops-toolkit](https://github.com/azullus/cosmicbytez-ops-toolkit)** - PowerShell scripts including Install-BC-Helper.ps1
+- **[docker-infrastructure](https://github.com/azullus/docker-infrastructure)** - Self-hosted infrastructure stacks
+
+---
+
+## 📝 License
+
+MIT License - See [LICENSE.txt](LICENSE.txt) for details.
+
+---
+
+**Built with ❤️ for Business Central DevOps | Windows Desktop | Docker Orchestration**
