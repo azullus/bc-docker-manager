@@ -3,6 +3,7 @@
 > Electron + TypeScript desktop app for Dynamics 365 Business Central Docker containers with Claude AI troubleshooting, one-click deployment, and PowerShell integration.
 
 [![Release](https://img.shields.io/github/v/release/azullus/bc-docker-manager?logo=github)](https://github.com/azullus/bc-docker-manager/releases)
+[![Build](https://github.com/azullus/bc-docker-manager/actions/workflows/build-test.yml/badge.svg)](https://github.com/azullus/bc-docker-manager/actions/workflows/build-test.yml)
 [![Electron](https://img.shields.io/badge/Electron-Latest-47848F?logo=electron)](https://www.electronjs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)

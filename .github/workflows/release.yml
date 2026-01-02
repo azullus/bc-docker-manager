@@ -1,0 +1,129 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.1)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Get version
+      id: version
+      shell: pwsh
+      run: |
+        if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+          $version = "${{ github.event.inputs.version }}"
+        } else {
+          $version = $env:GITHUB_REF -replace 'refs/tags/', ''
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "VERSION_NUM=$($version -replace '^v', '')" >> $env:GITHUB_OUTPUT
+
+    - name: Update package.json version
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.VERSION_NUM }}"
+        $packageJson = Get-Content package.json | ConvertFrom-Json
+        $packageJson.version = $version
+        $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm run test:coverage
+
+    - name: Build Next.js
+      run: npm run build:electron
+
+    - name: Build Electron installer
+      run: npm run electron:build:win
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create release package
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+
+        # Create release notes
+        @"
+        # BC Container Manager $version
+
+        Business Central Docker container management desktop application.
+
+        ## Installation
+
+        ### Option 1: Installer (Recommended)
+        1. Download ``BC Container Manager-Setup-$version.exe``
+        2. Run the installer
+        3. Follow the installation wizard
+        4. Launch from Start Menu or Desktop shortcut
+
+        ### Option 2: Portable
+        Download and run ``BC Container Manager-Portable-$version.exe`` directly (no installation required)
+
+        ## Requirements
+
+        - Windows 10/11 64-bit
+        - Docker Desktop installed and running
+        - PowerShell 5.1 or later
+
+        ## Features
+
+        - Docker container management (bcserver-* containers)
+        - One-click container deployment via Install-BC-Helper.ps1
+        - Real-time logs viewer with search and filtering
+        - Backup and restore operations
+        - AI-powered troubleshooting (Claude integration)
+        - Container health monitoring
+
+        ## What's New
+
+        See [CHANGELOG.md](https://github.com/azullus/bc-docker-manager/blob/main/CHANGELOG.md) for detailed changes.
+
+        ## Checksums
+
+        "@ | Out-File -FilePath "RELEASE_NOTES.md" -Encoding UTF8
+
+        # Generate checksums
+        Get-ChildItem dist4/*.exe | ForEach-Object {
+          $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+          "$hash  $($_.Name)" | Out-File -FilePath "dist4/$($_.Name).sha256" -Encoding ASCII
+          Add-Content -Path "RELEASE_NOTES.md" -Value "- **$($_.Name)**: ``$hash``"
+        }
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: BC Container Manager ${{ steps.version.outputs.VERSION }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        files: |
+          dist4/*.exe
+          dist4/*.exe.sha256
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
