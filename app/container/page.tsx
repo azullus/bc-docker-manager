@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import {
@@ -30,7 +30,6 @@ import {
 
 function ContainerDetailContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const containerId = searchParams.get('id');
 
   const [container, setContainer] = useState<BCContainer | null>(null);

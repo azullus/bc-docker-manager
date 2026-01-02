@@ -92,7 +92,7 @@ export default function LogViewer({ logs, onRefresh, loading }: LogViewerProps) 
           <Filter className="w-4 h-4 text-gray-400" />
           <select
             value={streamFilter}
-            onChange={(e) => setStreamFilter(e.target.value as any)}
+            onChange={(e) => setStreamFilter(e.target.value as 'all' | 'stdout' | 'stderr')}
             className="input"
           >
             <option value="all">All</option>

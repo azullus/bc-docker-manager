@@ -39,7 +39,7 @@ How can I help you today?`,
         timestamp: new Date().toISOString(),
       }]);
     }
-  }, [initialContext]);
+  }, [initialContext, messages.length]);
 
   // Handle initial prompt from quick actions
   useEffect(() => {
@@ -99,7 +99,7 @@ How can I help you today?`,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',

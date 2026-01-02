@@ -4,6 +4,7 @@
  */
 
 import Docker from 'dockerode';
+import { accessSync, constants } from 'fs';
 import { BCContainer, ContainerStats, ContainerLog, PortMapping, BackupInfo } from './types';
 
 /**
@@ -35,7 +36,6 @@ function getDockerOptions(): Docker.DockerOptions {
   }
 
   // Check for Docker socket in common locations
-  const fs = require('fs');
   const socketPaths = [
     '/var/run/docker.sock',           // Standard Linux/macOS
     '/run/docker.sock',               // Alternative Linux location
@@ -44,7 +44,7 @@ function getDockerOptions(): Docker.DockerOptions {
 
   for (const socketPath of socketPaths) {
     try {
-      fs.accessSync(socketPath, fs.constants.R_OK | fs.constants.W_OK);
+      accessSync(socketPath, constants.R_OK | constants.W_OK);
       return { socketPath };
     } catch {
       // Socket not accessible, try next
@@ -347,7 +347,7 @@ function mapStatus(state: string): BCContainer['status'] {
   return statusMap[state.toLowerCase()] || 'stopped';
 }
 
-function mapPorts(ports: Record<string, any[]>): PortMapping[] {
+function mapPorts(ports: Record<string, Array<{HostIp?: string, HostPort?: string}> | null>): PortMapping[] {
   const mappings: PortMapping[] = [];
 
   for (const [key, bindings] of Object.entries(ports)) {
@@ -361,6 +361,9 @@ function mapPorts(ports: Record<string, any[]>): PortMapping[] {
       }
 
       for (const binding of bindings) {
+        if (!binding.HostPort) {
+          continue;
+        }
         const publicPort = parseInt(binding.HostPort, 10);
 
         // Skip bindings with invalid public ports
@@ -389,7 +392,7 @@ function extractBCVersion(image: string): string | undefined {
   return undefined;
 }
 
-function buildWebClientUrl(info: any): string | undefined {
+function buildWebClientUrl(info: Docker.ContainerInspectInfo): string | undefined {
   const ports = info.NetworkSettings.Ports;
   const httpsPort = ports['443/tcp']?.[0]?.HostPort;
   const name = info.Name.replace('/', '');

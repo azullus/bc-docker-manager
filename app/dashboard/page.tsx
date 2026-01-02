@@ -42,7 +42,7 @@ export default function DashboardPage() {
         healthyContainers: healthy,
         unhealthyContainers: data.length - healthy,
       });
-    } catch (err) {
+    } catch {
       setError('Failed to connect to Docker. Is Docker running?');
     } finally {
       setLoading(false);
