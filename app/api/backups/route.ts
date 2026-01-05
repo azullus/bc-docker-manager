@@ -18,7 +18,7 @@ import type { BackupInfo, BackupSchedule, ApiResponse } from '@/lib/types';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const containerName = searchParams.get('containerName');
+    const _containerName = searchParams.get('containerName'); // Reserved for future use
 
     // In web mode, we cannot access the local filesystem
     const response: ApiResponse<BackupInfo[]> = {

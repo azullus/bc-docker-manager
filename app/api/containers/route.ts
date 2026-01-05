@@ -8,8 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { BCContainer, ApiResponse } from '@/lib/types';
 
-// BC container name pattern
-const BC_CONTAINER_PATTERN = /^bcserver/;
+// BC container name pattern - reserved for future Docker API integration
+// const BC_CONTAINER_PATTERN = /^bcserver/;
 
 /**
  * GET /api/containers
