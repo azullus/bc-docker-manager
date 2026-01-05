@@ -18,6 +18,7 @@ import type { BackupInfo, BackupSchedule, ApiResponse } from '@/lib/types';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _containerName = searchParams.get('containerName'); // Reserved for future use
 
     // In web mode, we cannot access the local filesystem

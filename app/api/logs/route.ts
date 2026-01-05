@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const containerId = searchParams.get('containerId');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _tail = parseInt(searchParams.get('tail') || '100', 10); // Reserved for Docker API
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _since = searchParams.get('since'); // Reserved for Docker API
 
     if (!containerId) {
