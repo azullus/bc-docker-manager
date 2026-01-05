@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"Start-Process ''C:\\\\Obsidian\\\\AI-Projects\\\\BC-Docker-Manager\\\\dist\\\\win-unpacked\\\\electron.exe'' -Verb RunAs\")",
+      "Bash(npm run build:*)",
+      "Bash(npm run electron:build:win:*)"
+    ]
+  }
+}

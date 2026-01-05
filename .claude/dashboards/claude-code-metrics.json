@@ -1,0 +1,459 @@
+{
+  "apiVersion": "dashboard.grafana.app/v2beta1",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "claude-code-metrics",
+    "generation": 12,
+    "creationTimestamp": "2025-12-10T13:33:56Z",
+    "labels": {},
+    "annotations": {}
+  },
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "builtIn": true,
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "query": {
+            "group": "grafana",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          }
+        }
+      }
+    ],
+    "cursorSync": "Off",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "expr": "count(count by (session_id)(claude_code_token_usage_tokens_total))"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "Total Claude Code sessions tracked",
+          "id": 1,
+          "links": [],
+          "title": "Sessions",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [{"color": "green", "value": 0}]
+                  },
+                  "unit": "none"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+                "textMode": "auto"
+              }
+            },
+            "version": "12.3.0"
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_commit_count_total)"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Total commits made via Claude Code",
+          "id": 2,
+          "title": "Commits Made",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": 0}]},
+                  "unit": "none"
+                }
+              },
+              "options": {"colorMode": "value", "graphMode": "none"}
+            }
+          }
+        }
+      },
+      "panel-5": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_cost_usage_USD_total)"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Total API cost in USD",
+          "id": 5,
+          "title": "Total Cost",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "decimals": 2,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"color": "green", "value": 0},
+                      {"color": "yellow", "value": 10},
+                      {"color": "red", "value": 50}
+                    ]
+                  },
+                  "unit": "currencyUSD"
+                }
+              },
+              "options": {"colorMode": "value", "graphMode": "area"}
+            }
+          }
+        }
+      },
+      "panel-10": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_token_usage_tokens_total{type=\"input\"})"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Tokens sent to Claude",
+          "id": 10,
+          "title": "Input Tokens",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {"mode": "absolute", "steps": [{"color": "light-blue", "value": 0}]},
+                  "unit": "short"
+                }
+              },
+              "options": {"colorMode": "value", "graphMode": "area"}
+            }
+          }
+        }
+      },
+      "panel-11": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_token_usage_tokens_total{type=\"output\"})"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Tokens generated by Claude",
+          "id": 11,
+          "title": "Output Tokens",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {"mode": "absolute", "steps": [{"color": "light-orange", "value": 0}]},
+                  "unit": "short"
+                }
+              },
+              "options": {"colorMode": "value", "graphMode": "area"}
+            }
+          }
+        }
+      },
+      "panel-14": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_token_usage_tokens_total{type=\"cacheRead\"}) / (sum(claude_code_token_usage_tokens_total{type=\"cacheRead\"}) + sum(claude_code_token_usage_tokens_total{type=\"input\"})) * 100"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Percentage of input served from cache",
+          "id": 14,
+          "title": "Cache Efficiency",
+          "vizConfig": {
+            "group": "gauge",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "max": 100,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"color": "red", "value": 0},
+                      {"color": "yellow", "value": 50},
+                      {"color": "green", "value": 80}
+                    ]
+                  },
+                  "unit": "percent"
+                }
+              },
+              "options": {"showThresholdLabels": false, "showThresholdMarkers": true}
+            }
+          }
+        }
+      },
+      "panel-31": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum(claude_code_active_time_seconds_total{type=\"cli\"}) / sum(claude_code_active_time_seconds_total{type=\"user\"})"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "CLI time / User time - higher = Claude doing more work",
+          "id": 31,
+          "title": "Productivity Ratio",
+          "vizConfig": {
+            "group": "gauge",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "decimals": 0,
+                  "max": 1000,
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"color": "red", "value": 0},
+                      {"color": "yellow", "value": 50},
+                      {"color": "green", "value": 200},
+                      {"color": "super-light-green", "value": 500}
+                    ]
+                  },
+                  "unit": "x"
+                }
+              },
+              "options": {"showThresholdLabels": true, "showThresholdMarkers": true}
+            }
+          }
+        }
+      },
+      "panel-40": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum by (type) (rate(claude_code_token_usage_tokens_total[5m]))", "legendFormat": "{{type}}"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "Token consumption rate by type",
+          "id": 40,
+          "title": "Token Usage Over Time",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "drawStyle": "line",
+                    "fillOpacity": 15,
+                    "lineWidth": 2
+                  },
+                  "unit": "short"
+                }
+              },
+              "options": {
+                "legend": {"displayMode": "table", "placement": "bottom", "showLegend": true},
+                "tooltip": {"mode": "multi", "sort": "desc"}
+              }
+            }
+          }
+        }
+      },
+      "panel-42": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {"expr": "sum by (model) (rate(claude_code_cost_usage_USD_total[5m])) * 300", "legendFormat": "{{model}}"},
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ]
+            }
+          },
+          "description": "API cost accumulation rate",
+          "id": 42,
+          "title": "Cost Over Time",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {"drawStyle": "line", "fillOpacity": 20, "lineWidth": 2},
+                  "unit": "currencyUSD"
+                }
+              },
+              "options": {
+                "legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}
+              }
+            }
+          }
+        }
+      }
+    },
+    "tags": ["claude", "productivity", "ai", "development"],
+    "timeSettings": {
+      "autoRefresh": "auto",
+      "autoRefreshIntervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+      "from": "now-1h",
+      "timezone": "browser",
+      "to": "now"
+    },
+    "title": "Claude Code Metrics"
+  }
+}
