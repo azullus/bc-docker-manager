@@ -86,6 +86,7 @@ function ContainerDetailContent() {
   useEffect(() => {
     fetchContainer();
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerId]);
 
   // Fetch stats when container is loaded and running
@@ -96,6 +97,7 @@ function ContainerDetailContent() {
       const interval = setInterval(fetchStats, 10000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [container?.id, container?.status]);
 
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
@@ -110,7 +112,7 @@ function ContainerDetailContent() {
         setTimeout(fetchLogs, 2000);
       }
     } catch (err) {
-      toast.error(`Action failed: ${(err as Error).message}`);
+      toast.error(`Action failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setActionLoading(null);
     }
@@ -124,7 +126,7 @@ function ContainerDetailContent() {
       await createBackup(containerId);
       toast.success('Backup created successfully!');
     } catch (err) {
-      toast.error(`Backup failed: ${(err as Error).message}`);
+      toast.error(`Backup failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setActionLoading(null);
     }

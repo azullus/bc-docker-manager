@@ -113,6 +113,36 @@ function getElectronAPI(): ElectronAPI | null {
   return null;
 }
 
+/**
+ * Helper to handle fetch responses consistently
+ * Validates HTTP status and parses JSON response
+ */
+async function handleFetchResponse<T>(response: Response, errorContext: string): Promise<ApiResponse<T>> {
+  if (!response.ok) {
+    throw new Error(`${errorContext}: HTTP ${response.status} ${response.statusText}`);
+  }
+
+  try {
+    const data = await response.json();
+    return data as ApiResponse<T>;
+  } catch {
+    throw new Error(`${errorContext}: Invalid JSON response`);
+  }
+}
+
+/**
+ * Safely extracts data from API response with proper null handling
+ */
+function extractData<T>(result: ApiResponse<T>, errorContext: string): T {
+  if (!result.success) {
+    throw new Error(result.error || `${errorContext} failed`);
+  }
+  if (result.data === undefined || result.data === null) {
+    throw new Error(`${errorContext}: No data returned`);
+  }
+  return result.data;
+}
+
 // ============================================
 // Docker API
 // ============================================
@@ -127,10 +157,13 @@ export async function checkDockerConnection(): Promise<DockerConnectionStatus> {
   // Web mode: try to fetch containers to check connection
   try {
     const response = await fetch('/api/containers');
+    if (!response.ok) {
+      return { connected: false, error: `HTTP ${response.status}` };
+    }
     const data = await response.json();
     return { connected: data.success };
-  } catch {
-    return { connected: false, error: 'Failed to connect to API' };
+  } catch (err) {
+    return { connected: false, error: err instanceof Error ? err.message : 'Failed to connect to API' };
   }
 }
 
@@ -139,14 +172,14 @@ export async function listContainers(): Promise<BCContainer[]> {
 
   if (electron) {
     const result = await electron.docker.listContainers();
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) throw new Error(result.error || 'Failed to list containers');
     return result.data || [];
   }
 
   const response = await fetch('/api/containers');
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const data = await handleFetchResponse<BCContainer[]>(response, 'List containers');
+  if (!data.success) throw new Error(data.error || 'Failed to list containers');
+  return data.data || [];
 }
 
 export async function getContainer(id: string): Promise<BCContainer | null> {
@@ -158,10 +191,15 @@ export async function getContainer(id: string): Promise<BCContainer | null> {
     return result.data || null;
   }
 
-  const response = await fetch(`/api/containers/${id}`);
-  const data = await response.json();
-  if (!data.success) return null;
-  return data.data;
+  try {
+    const response = await fetch(`/api/containers/${encodeURIComponent(id)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.success) return null;
+    return data.data || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getContainerStats(id: string): Promise<ContainerStats> {
@@ -169,14 +207,12 @@ export async function getContainerStats(id: string): Promise<ContainerStats> {
 
   if (electron) {
     const result = await electron.docker.getContainerStats(id);
-    if (!result.success) throw new Error(result.error);
-    return result.data!;
+    return extractData(result, 'Get container stats');
   }
 
-  const response = await fetch(`/api/containers/${id}/stats`);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const response = await fetch(`/api/containers/${encodeURIComponent(id)}/stats`);
+  const data = await handleFetchResponse<ContainerStats>(response, 'Get container stats');
+  return extractData(data, 'Get container stats');
 }
 
 export async function getContainerLogs(id: string, options?: LogOptions): Promise<ContainerLog[]> {
@@ -184,7 +220,7 @@ export async function getContainerLogs(id: string, options?: LogOptions): Promis
 
   if (electron) {
     const result = await electron.docker.getContainerLogs(id, options);
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) throw new Error(result.error || 'Failed to get logs');
     return result.data || [];
   }
 
@@ -192,10 +228,10 @@ export async function getContainerLogs(id: string, options?: LogOptions): Promis
   if (options?.tail) params.set('tail', options.tail.toString());
   if (options?.since) params.set('since', options.since.toString());
 
-  const response = await fetch(`/api/logs?containerId=${id}&${params}`);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const response = await fetch(`/api/logs?containerId=${encodeURIComponent(id)}&${params}`);
+  const data = await handleFetchResponse<ContainerLog[]>(response, 'Get container logs');
+  if (!data.success) throw new Error(data.error || 'Failed to get logs');
+  return data.data || [];
 }
 
 export async function containerAction(
@@ -219,8 +255,10 @@ export async function containerAction(
       case 'remove':
         result = await electron.docker.removeContainer(id);
         break;
+      default:
+        throw new Error(`Unknown action: ${action}`);
     }
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) throw new Error(result.error || `${action} failed`);
     return;
   }
 
@@ -229,8 +267,8 @@ export async function containerAction(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, containerId: id }),
   });
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
+  const data = await handleFetchResponse<void>(response, `Container ${action}`);
+  if (!data.success) throw new Error(data.error || `${action} failed`);
 }
 
 export async function getDockerInfo(): Promise<DockerInfo> {
@@ -238,14 +276,12 @@ export async function getDockerInfo(): Promise<DockerInfo> {
 
   if (electron) {
     const result = await electron.docker.getDockerInfo();
-    if (!result.success) throw new Error(result.error);
-    return result.data!;
+    return extractData(result, 'Get Docker info');
   }
 
   const response = await fetch('/api/docker/info');
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const data = await handleFetchResponse<DockerInfo>(response, 'Get Docker info');
+  return extractData(data, 'Get Docker info');
 }
 
 // ============================================
@@ -257,7 +293,7 @@ export async function listBackups(containerName?: string): Promise<BackupInfo[]>
 
   if (electron) {
     const result = await electron.backups.list(containerName);
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) throw new Error(result.error || 'Failed to list backups');
     return result.data || [];
   }
 
@@ -265,9 +301,9 @@ export async function listBackups(containerName?: string): Promise<BackupInfo[]>
     ? `/api/backups?containerName=${encodeURIComponent(containerName)}`
     : '/api/backups';
   const response = await fetch(url);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const data = await handleFetchResponse<BackupInfo[]>(response, 'List backups');
+  if (!data.success) throw new Error(data.error || 'Failed to list backups');
+  return data.data || [];
 }
 
 export async function createBackup(containerId: string): Promise<BackupInfo> {
@@ -275,8 +311,7 @@ export async function createBackup(containerId: string): Promise<BackupInfo> {
 
   if (electron) {
     const result = await electron.backups.create(containerId);
-    if (!result.success) throw new Error(result.error);
-    return result.data!;
+    return extractData(result, 'Create backup');
   }
 
   const response = await fetch('/api/backups', {
@@ -284,9 +319,8 @@ export async function createBackup(containerId: string): Promise<BackupInfo> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ containerId }),
   });
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const data = await handleFetchResponse<BackupInfo>(response, 'Create backup');
+  return extractData(data, 'Create backup');
 }
 
 export async function deleteBackup(filePath: string): Promise<void> {
@@ -294,7 +328,7 @@ export async function deleteBackup(filePath: string): Promise<void> {
 
   if (electron) {
     const result = await electron.backups.delete(filePath);
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) throw new Error(result.error || 'Failed to delete backup');
     return;
   }
 
@@ -303,8 +337,8 @@ export async function deleteBackup(filePath: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filePath }),
   });
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
+  const data = await handleFetchResponse<void>(response, 'Delete backup');
+  if (!data.success) throw new Error(data.error || 'Failed to delete backup');
 }
 
 // ============================================
@@ -319,8 +353,7 @@ export async function sendAIMessage(
 
   if (electron) {
     const result = await electron.ai.chat(messages, containerContext);
-    if (!result.success) throw new Error(result.error);
-    return result.data!;
+    return extractData(result, 'AI chat');
   }
 
   const response = await fetch('/api/ai', {
@@ -328,9 +361,8 @@ export async function sendAIMessage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages, containerContext }),
   });
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.data;
+  const data = await handleFetchResponse<ChatMessage>(response, 'AI chat');
+  return extractData(data, 'AI chat');
 }
 
 // ============================================
@@ -373,7 +405,14 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
     // Fall back to localStorage in web mode
     if (typeof window !== 'undefined') {
       const value = localStorage.getItem(`bc-manager-${key}`);
-      return value ? JSON.parse(value) : undefined;
+      if (!value) return undefined;
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        // If JSON parsing fails, return undefined and log warning
+        console.warn(`Failed to parse setting '${key}' from localStorage`);
+        return undefined;
+      }
     }
     return undefined;
   }

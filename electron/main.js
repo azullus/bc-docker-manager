@@ -70,12 +70,18 @@ function registerCustomProtocol() {
  * Creates the main application window
  */
 function createWindow() {
+  // Get icon path based on dev/prod environment
+  const iconPath = isDev
+    ? path.join(__dirname, '..', 'assets', 'icon.png')
+    : path.join(process.resourcesPath, 'assets', 'icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 400,
     title: 'BC Container Manager',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -88,8 +94,9 @@ function createWindow() {
 
   // Load the app
   if (isDev) {
-    // In development, load from Next.js dev server
-    mainWindow.loadURL('http://localhost:3000');
+    // In development, load from Next.js dev server on port 3333
+    const devPort = process.env.DEV_PORT || '3333';
+    mainWindow.loadURL(`http://localhost:${devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
     // In production, use custom protocol for proper path resolution
@@ -290,12 +297,32 @@ app.on('window-all-closed', () => {
 });
 
 // Handle certificate errors for self-signed BC containers
-app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  // Allow self-signed certs for local BC containers
-  if (url.includes('localhost') || url.includes('bcserver')) {
-    event.preventDefault();
-    callback(true);
-  } else {
+app.on('certificate-error', (event, webContents, urlString, error, certificate, callback) => {
+  // SECURITY: Only allow self-signed certs for truly local connections
+  // Prevents DNS spoofing attacks via domains like 'bcserver-attacker.com'
+  try {
+    const parsedUrl = new URL(urlString);
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Allow self-signed certs only for:
+    // 1. localhost or 127.0.0.1 (loopback)
+    // 2. Container names starting with 'bcserver-' on local network (.local)
+    // 3. Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+    const isLoopback = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isLocalBcContainer = hostname.startsWith('bcserver-') && (
+      hostname.endsWith('.local') ||
+      !hostname.includes('.') // hostname without TLD (e.g., 'bcserver-test')
+    );
+    const isPrivateIp = /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)/.test(hostname);
+
+    if (isLoopback || isLocalBcContainer || isPrivateIp) {
+      event.preventDefault();
+      callback(true);
+    } else {
+      callback(false);
+    }
+  } catch {
+    // If URL parsing fails, reject the certificate
     callback(false);
   }
 });

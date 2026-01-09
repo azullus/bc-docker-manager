@@ -21,6 +21,53 @@ function getErrorMessage(error) {
 }
 
 /**
+ * Validates a container ID parameter
+ * Docker container IDs are alphanumeric (hex) strings
+ * @param {string} id - Container ID to validate
+ * @returns {{valid: boolean, error?: string}} Validation result
+ */
+function validateContainerId(id) {
+  if (!id || typeof id !== 'string') {
+    return { valid: false, error: 'Container ID is required' };
+  }
+  // Docker IDs are 64-char hex, but short IDs (12+ chars) are also accepted
+  // Also allow container names which can have alphanumeric, dash, underscore
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(id)) {
+    return { valid: false, error: 'Invalid container ID format' };
+  }
+  if (id.length > 128) {
+    return { valid: false, error: 'Container ID too long' };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validates a file path to ensure it's within allowed directories
+ * Prevents path traversal attacks
+ * @param {string} filePath - Path to validate
+ * @param {string} allowedRoot - Root directory that path must be within
+ * @returns {{valid: boolean, resolvedPath?: string, error?: string}} Validation result
+ */
+function validateFilePath(filePath, allowedRoot) {
+  if (!filePath || typeof filePath !== 'string') {
+    return { valid: false, error: 'File path is required' };
+  }
+
+  const resolvedPath = path.resolve(filePath);
+  const resolvedRoot = path.resolve(allowedRoot);
+
+  // Use path.relative to check if path is within root
+  const relative = path.relative(resolvedRoot, resolvedPath);
+
+  // If relative path starts with '..' or is absolute, it's outside the root
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return { valid: false, error: 'Path is outside allowed directory' };
+  }
+
+  return { valid: true, resolvedPath };
+}
+
+/**
  * Get Docker connection options based on environment
  * Supports: Windows named pipe, Unix socket, WSL2 with Docker Desktop
  */
@@ -203,6 +250,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:get-container', async (event, id) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       const info = await container.inspect();
@@ -228,6 +281,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:get-container-stats', async (event, id) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const stats = await getContainerStats(id);
       return { success: true, data: stats };
@@ -237,6 +296,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:get-container-logs', async (event, id, options = {}) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       const logStream = await container.logs({
@@ -255,6 +320,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:start-container', async (event, id) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       await container.start();
@@ -265,6 +336,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:stop-container', async (event, id) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       await container.stop();
@@ -275,6 +352,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:restart-container', async (event, id) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       await container.restart();
@@ -285,6 +368,12 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('docker:remove-container', async (event, id, force = false) => {
+    // Validate container ID
+    const validation = validateContainerId(id);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     try {
       const container = docker.getContainer(id);
       await container.remove({ force });
@@ -496,22 +585,25 @@ function registerIpcHandlers(ipcMain) {
       const settings = await loadSettings();
       const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
 
-      // Security check: ensure path is within backup root
-      // Use case-insensitive comparison on Windows (paths are case-insensitive)
-      const resolvedPath = path.resolve(filePath);
-      const resolvedRoot = path.resolve(backupRoot);
-
-      const isWithinRoot = process.platform === 'win32'
-        ? resolvedPath.toLowerCase().startsWith(resolvedRoot.toLowerCase())
-        : resolvedPath.startsWith(resolvedRoot);
-
-      if (!isWithinRoot) {
-        return { success: false, error: 'Invalid backup path' };
+      // Security check: use path.relative to prevent traversal attacks
+      // This catches cases like 'C:\BCBackups..\..\..\Windows\file.bak'
+      const pathValidation = validateFilePath(filePath, backupRoot);
+      if (!pathValidation.valid) {
+        return { success: false, error: pathValidation.error || 'Invalid backup path' };
       }
+
+      const resolvedPath = pathValidation.resolvedPath;
 
       // Additional check: ensure file has .bak extension
       if (!resolvedPath.endsWith('.bak')) {
         return { success: false, error: 'Only .bak files can be deleted' };
+      }
+
+      // Verify file exists before attempting deletion
+      try {
+        await fs.access(resolvedPath);
+      } catch {
+        return { success: false, error: 'Backup file not found' };
       }
 
       await fs.unlink(resolvedPath);
