@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Business Central Container Deployment Helper v3.7
+    Business Central Container Deployment Helper v4.8
 
 .DESCRIPTION
     Interactive deployment script for Microsoft Dynamics 365 Business Central containers.
@@ -36,10 +36,15 @@
 
 .NOTES
     Author: CosmicBytez IT Operations
-    Version: 4.7
-    Last Updated: 2026-01
+    Version: 4.8
+    Last Updated: 2026-01-09
 
 .CHANGELOG
+    4.8 - CRITICAL FIX: Clean NAT mappings BEFORE restarting Docker (not after)
+        - Docker recreates NAT mappings from persistent state when it starts
+        - Previously cleaned AFTER Docker started, allowing recreation
+        - Now cleans while Docker is stopped, preventing 0x803b0013 errors
+        - Fixes deployment failures from BC Docker Manager desktop app
     4.7 - NUCLEAR OPTION: Unconditionally restart HNS and Docker at deployment start
         - This clears corrupted HNS database state that causes 0x803b0013 errors
         - NAT cleanup alone wasn't enough - HNS endpoints themselves were corrupted
@@ -479,11 +484,43 @@ function Clear-OrphanedNatPorts {
             Write-Log "Docker service stopped" -Level INFO
             Start-Sleep -Seconds 3
 
-            # Stop and restart HNS to clear all endpoint/network state
+            # Stop HNS to clear all endpoint/network state
             Stop-Service -Name hns -Force -ErrorAction Stop
             Write-Log "HNS service stopped" -Level INFO
             Start-Sleep -Seconds 2
 
+            # CRITICAL FIX: Clean NAT mappings WHILE services are stopped
+            # This prevents Docker from recreating them from persistent state
+            Write-Log "Cleaning up NAT static mappings while services are stopped..." -Level INFO
+            try {
+                $natMappings = Get-NetNatStaticMapping -ErrorAction Stop
+                if ($natMappings) {
+                    $bcPortMappings = $natMappings | Where-Object {
+                        ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
+                        ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
+                    }
+                    $removedCount = 0
+                    foreach ($mapping in $bcPortMappings) {
+                        try {
+                            Remove-NetNatStaticMapping -StaticMappingID $mapping.StaticMappingID -Confirm:$false -ErrorAction Stop
+                            $removedCount++
+                        } catch {
+                            # Ignore individual mapping errors
+                        }
+                    }
+                    if ($removedCount -gt 0) {
+                        Write-Log "Removed $removedCount NAT static mappings" -Level INFO
+                        Start-Sleep -Seconds 5  # Let NAT layer settle before restarting services
+                    } else {
+                        Write-Log "No NAT static mappings found in BC port range" -Level INFO
+                    }
+                }
+            }
+            catch {
+                Write-Log "NAT static mapping cleanup warning: $($_.Exception.Message)" -Level WARN
+            }
+
+            # Now restart services with clean NAT state
             Start-Service -Name hns -ErrorAction Stop
             Write-Log "HNS service started" -Level INFO
             Start-Sleep -Seconds 3
@@ -518,38 +555,9 @@ function Clear-OrphanedNatPorts {
         Write-Log "Pruning unused Docker networks..."
         docker network prune -f 2>$null
 
-        # Step 6: Clean up ALL NAT static mappings in BC port range (8000-9999)
-        # This is aggressive but necessary - HNS errors persist until NAT layer is cleaned
-        Write-Log "Cleaning up NAT static mappings in BC port range (8000-9999)..."
-        try {
-            $natMappings = Get-NetNatStaticMapping -ErrorAction Stop
-            if ($natMappings) {
-                # Remove ALL mappings in BC port range to ensure clean slate
-                $bcPortMappings = $natMappings | Where-Object {
-                    ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
-                    ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
-                }
-                $removedCount = 0
-                foreach ($mapping in $bcPortMappings) {
-                    try {
-                        Remove-NetNatStaticMapping -StaticMappingID $mapping.StaticMappingID -Confirm:$false -ErrorAction Stop
-                        $removedCount++
-                    } catch {
-                        Write-Log "Could not remove NAT mapping for port $($mapping.ExternalPort): $($_.Exception.Message)" -Level WARN
-                    }
-                }
-                if ($removedCount -gt 0) {
-                    Write-Log "Removed $removedCount NAT static mappings" -Level INFO
-                    Start-Sleep -Seconds 3  # Let NAT layer settle
-                } else {
-                    Write-Log "No NAT static mappings found in BC port range" -Level INFO
-                }
-            }
-        }
-        catch {
-            Write-Log "NAT static mapping cleanup failed: $($_.Exception.Message)" -Level WARN
-            Write-Log "Continuing deployment - NAT cleanup requires administrator privileges" -Level WARN
-        }
+        # Step 6: NAT cleanup already completed in Step 4 (moved before service restart)
+        # This was a CRITICAL FIX: NAT mappings must be cleaned WHILE Docker is stopped
+        # to prevent Docker from recreating them from persistent state
 
         # Step 7: If HNS module is available, clean up endpoints AND networks
         if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
