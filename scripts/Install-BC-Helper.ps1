@@ -36,8 +36,28 @@
 
 .NOTES
     Author: CosmicBytez IT Operations
-    Version: 3.6
-    Last Updated: 2025-12
+    Version: 4.5
+    Last Updated: 2026-01
+
+.CHANGELOG
+    4.5 - Added NAT static mapping cleanup during retry loop (fixes persistent 0x803b0013)
+        - Cleans both current and bumped ports before retry
+        - This was the missing piece - NAT mappings persist after HNS cleanup
+    4.4 - Increased port bump to +100 (was +10) to avoid overlapping stuck ports
+        - Added HNS endpoint cleanup between retries
+        - Increased max retries to 3
+    4.3 - Stopped removing NAT network during cleanup (caused 0x490 "Element not found")
+        - Added 0x490 and other HNS errors to retry pattern
+        - More conservative cleanup: only removes orphaned endpoints
+    4.2 - Fixed retry logic: bumps ports +10 on conflict instead of resetting HNS
+        - No longer kills Docker/WSL on retry
+        - Fixed HNS cmdlet syntax (pipe objects, not -Id parameter)
+    4.1 - Smart port detection: checks HNS endpoints, excluded ranges, Docker bindings
+        - Always auto-selects next available port if preferred port is unavailable
+        - Each BC version gets 100-port range to avoid conflicts
+    4.0 - Added HNS network reset to fix persistent port conflict errors (0x803b0013)
+    3.9 - Added auto port selection when ports are in use
+    3.8 - Fixed auth type handling, improved credential validation
 #>
 
 [CmdletBinding()]
@@ -78,7 +98,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$scriptVersion = "3.7"
+$scriptVersion = "4.5"
 
 #region Configuration
 $backupRootPath = "C:\BCBackups"
@@ -193,14 +213,97 @@ function Get-BCVersionSelection {
     return $versions[[int]$selection]
 }
 
-function Get-VersionPorts {
+function Test-PortAvailable {
     param(
-        [string]$Version
+        [int]$Port
     )
 
-    # Calculate version-specific ports to avoid conflicts
-    # Port ranges chosen to avoid Windows reserved/excluded port ranges
-    # Use lower port numbers that are less likely to conflict with Hyper-V dynamic ports
+    # Check if port is in use via netstat
+    $netstatResult = netstat -ano 2>$null | Select-String ":$Port\s"
+    if ($netstatResult) {
+        return $false
+    }
+
+    # Check HNS endpoint port reservations (the real cause of 0x803b0013 errors)
+    if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
+        try {
+            $hnsEndpoints = Get-HnsEndpoint -ErrorAction SilentlyContinue
+            foreach ($endpoint in $hnsEndpoints) {
+                # Check if this endpoint has our port in its policies
+                if ($endpoint.Policies) {
+                    $portPolicies = $endpoint.Policies | Where-Object {
+                        $_.Type -eq 'PortMapping' -and
+                        ($_.ExternalPort -eq $Port -or $_.InternalPort -eq $Port)
+                    }
+                    if ($portPolicies) {
+                        return $false
+                    }
+                }
+            }
+        }
+        catch {
+            # If HNS check fails, continue with other checks
+        }
+    }
+
+    # Check Windows excluded port ranges (Hyper-V dynamic ports)
+    try {
+        $excludedRanges = netsh interface ipv4 show excludedportrange protocol=tcp 2>$null
+        foreach ($line in $excludedRanges -split "`n") {
+            if ($line -match '^\s*(\d+)\s+(\d+)\s*$') {
+                $start = [int]$Matches[1]
+                $end = [int]$Matches[2]
+                if ($Port -ge $start -and $Port -le $end) {
+                    return $false
+                }
+            }
+        }
+    }
+    catch {
+        # Continue if excluded range check fails
+    }
+
+    # Check Docker port bindings directly
+    try {
+        $dockerPorts = docker ps --format '{{.Ports}}' 2>$null
+        if ($dockerPorts -match ":$Port->") {
+            return $false
+        }
+    }
+    catch {
+        # Continue if docker check fails
+    }
+
+    return $true
+}
+
+function Find-AvailablePort {
+    param(
+        [int]$StartPort,
+        [int]$MaxAttempts = 100
+    )
+
+    $port = $StartPort
+    for ($i = 0; $i -lt $MaxAttempts; $i++) {
+        if (Test-PortAvailable -Port $port) {
+            return $port
+        }
+        $port++
+    }
+
+    # If no port found in range, throw error
+    throw "Could not find available port starting from $StartPort after $MaxAttempts attempts"
+}
+
+function Get-VersionPorts {
+    param(
+        [string]$Version,
+        [switch]$AutoSelectAvailable
+    )
+
+    # Calculate version-specific port RANGES to avoid conflicts
+    # Each BC version gets its own 100-port range for each service
+    # This allows multiple containers of same version with different ports
     $baseVersion = switch ($Version) {
         "Latest"    { 99 }
         "NextMinor" { 98 }
@@ -208,13 +311,39 @@ function Get-VersionPorts {
         default     { [int]$Version }
     }
 
-    return @{
-        WebPort   = 8500 + $baseVersion      # Was 54500 (often in excluded range)
-        DevPort   = 7000 + $baseVersion      # Was 8000
-        HttpsPort = 9400 + $baseVersion      # Was 44300 (often in excluded range)
-        SoapPort  = 6000 + ($baseVersion * 10)  # Was 7047 base
-        ODataPort = 6100 + ($baseVersion * 10)  # Was 7048 base
+    # Define port ranges for each service type
+    # Format: BaseStart + (version * rangeSize) gives each version its own range
+    $portRanges = @{
+        WebPort   = @{ Start = 8500 + $baseVersion; RangeSize = 100 }
+        DevPort   = @{ Start = 7000 + $baseVersion; RangeSize = 100 }
+        HttpsPort = @{ Start = 9400 + $baseVersion; RangeSize = 100 }
+        SoapPort  = @{ Start = 6000 + ($baseVersion * 10); RangeSize = 100 }
+        ODataPort = @{ Start = 6100 + ($baseVersion * 10); RangeSize = 100 }
     }
+
+    $ports = @{}
+
+    # Always auto-select available ports to avoid HNS conflicts
+    Write-Log "Checking port availability and auto-selecting if needed..."
+
+    foreach ($portName in @('WebPort', 'DevPort', 'HttpsPort', 'SoapPort', 'ODataPort')) {
+        $range = $portRanges[$portName]
+        $preferredPort = $range.Start
+
+        if (Test-PortAvailable -Port $preferredPort) {
+            $ports[$portName] = $preferredPort
+        }
+        else {
+            # Find next available port in the range
+            $newPort = Find-AvailablePort -StartPort $preferredPort -MaxAttempts $range.RangeSize
+            if ($newPort -ne $preferredPort) {
+                Write-Log "Port $preferredPort ($portName) unavailable, using $newPort" -Level WARN
+            }
+            $ports[$portName] = $newPort
+        }
+    }
+
+    return $ports
 }
 
 function Clear-OrphanedNatPorts {
@@ -356,9 +485,10 @@ function Clear-OrphanedNatPorts {
             Write-Log "NAT static mapping cleanup skipped: $($_.Exception.Message)" -Level WARN
         }
 
-        # Step 6: If HNS module is available, clean up endpoints
+        # Step 6: If HNS module is available, clean up endpoints AND networks
         if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
             try {
+                # Remove orphaned HNS endpoints (pipe object, don't use -Id)
                 $hnsEndpoints = Get-HnsEndpoint -ErrorAction SilentlyContinue
                 if ($hnsEndpoints) {
                     $orphanedEndpoints = $hnsEndpoints | Where-Object {
@@ -366,12 +496,15 @@ function Clear-OrphanedNatPorts {
                     }
                     foreach ($endpoint in $orphanedEndpoints) {
                         Write-Log "Removing orphaned HNS endpoint: $($endpoint.Name)" -Level WARN
-                        Remove-HnsEndpoint -Id $endpoint.Id -ErrorAction SilentlyContinue
+                        $endpoint | Remove-HnsEndpoint -ErrorAction SilentlyContinue
                     }
                 }
+
+                # NOTE: Do NOT remove the NAT network - it causes "Element not found (0x490)" errors
+                # Docker doesn't reliably recreate it. Only clean up orphaned endpoints above.
             }
             catch {
-                Write-Log "HNS endpoint cleanup skipped: $($_.Exception.Message)" -Level WARN
+                Write-Log "HNS cleanup skipped: $($_.Exception.Message)" -Level WARN
             }
         }
 
@@ -524,18 +657,20 @@ function New-BCContainerDeployment {
         [PSCredential]$Credential,
         [hashtable]$Ports,
         [bool]$IncludeTestToolkit,
-        [string]$MemoryLimit = "8G"
+        [string]$MemoryLimit = "8G",
+        [ValidateSet('Windows','NavUserPassword')]
+        [string]$AuthType = "NavUserPassword"
     )
 
     Write-Log "Creating container: $ContainerName"
     Write-Log "Artifact URL: $ArtifactUrl"
+    Write-Log "Authentication: $AuthType"
     Write-Log "Ports - Web: $($Ports.WebPort), Dev: $($Ports.DevPort), HTTPS: $($Ports.HttpsPort)"
 
     $containerParams = @{
         containerName              = $ContainerName
         accept_eula                = $true
-        auth                       = "NavUserPassword"
-        credential                 = $Credential
+        auth                       = $AuthType
         artifactUrl                = $ArtifactUrl
         isolation                  = "hyperv"
         memoryLimit                = $MemoryLimit
@@ -551,6 +686,11 @@ function New-BCContainerDeployment {
         additionalParameters       = @("--restart=unless-stopped", "-p $($Ports.HttpsPort):443")
     }
 
+    # Only add credential for NavUserPassword auth
+    if ($AuthType -eq "NavUserPassword" -and $Credential) {
+        $containerParams.credential = $Credential
+    }
+
     if ($IncludeTestToolkit) {
         $containerParams.includeTestToolkit = $true
         $containerParams.includeTestLibrariesOnly = $true
@@ -559,9 +699,10 @@ function New-BCContainerDeployment {
     }
 
     # Try deployment with retry on port conflict
-    $maxRetries = 2
+    $maxRetries = 3
     $retryCount = 0
     $lastError = $null
+    $portBump = 100  # Bump by 100 to avoid overlapping with stuck HNS ports
 
     while ($retryCount -lt $maxRetries) {
         try {
@@ -573,19 +714,17 @@ function New-BCContainerDeployment {
             $lastError = $_
             $retryCount++
 
-            # Check if it's a port conflict error (be specific to avoid false matches)
-            if ($_.Exception.Message -match "0x803b0013|port.*already.*exists|port.*allocated|bind.*address already in use") {
-                Write-Log "HNS port conflict detected (attempt $retryCount of $maxRetries)" -Level WARN
+            # Check if it's an HNS/networking error that can be resolved with different ports
+            if ($_.Exception.Message -match "0x803b0013|0x490|hnsCall failed|port.*already.*exists|port.*allocated|bind.*address already in use|Element not found") {
+                Write-Log "HNS networking error detected (attempt $retryCount of $maxRetries)" -Level WARN
 
                 if ($retryCount -lt $maxRetries) {
-                    Write-Log "Cleaning up failed container and restarting HNS..." -Level WARN
+                    Write-Log "Cleaning up failed container and HNS endpoints..." -Level WARN
 
-                    # Force remove the zombie container (ignore errors - BcContainerHelper may have already cleaned up)
+                    # Force remove the zombie container
                     try {
                         $null = docker rm -f $ContainerName 2>&1
-                    } catch {
-                        # Container may not exist - that's fine
-                    }
+                    } catch { }
 
                     # Remove any container in 'created' state
                     try {
@@ -597,34 +736,91 @@ function New-BCContainerDeployment {
                                 }
                             }
                         }
-                    } catch {
-                        # Ignore cleanup errors
+                    } catch { }
+
+                    # Clean up orphaned HNS endpoints from failed container creation
+                    if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
+                        try {
+                            $hnsEndpoints = Get-HnsEndpoint -ErrorAction SilentlyContinue
+                            $orphanedEndpoints = $hnsEndpoints | Where-Object {
+                                $_.Name -like "*$ContainerName*" -or $_.Name -like "*bcserver*"
+                            }
+                            foreach ($endpoint in $orphanedEndpoints) {
+                                Write-Log "Removing orphaned HNS endpoint: $($endpoint.Name)" -Level WARN
+                                $endpoint | Remove-HnsEndpoint -ErrorAction SilentlyContinue
+                            }
+                        } catch { }
                     }
 
-                    # HNS port conflicts require restarting Docker/HNS to release ports
-                    Write-Log "Restarting Docker and HNS to release stuck ports..." -Level WARN
-                    Write-Log "WARNING: This may temporarily disrupt WSL networking" -Level WARN
+                    # Clean up NAT static mappings for ALL ports in range we might use (8000-9999)
+                    # This is critical - NAT mappings persist even after HNS endpoints are removed
                     try {
-                        Stop-Service docker -Force -ErrorAction SilentlyContinue
-                        Start-Sleep -Seconds 3
-                        Restart-Service hns -Force -ErrorAction SilentlyContinue
-                        Start-Sleep -Seconds 3
-                        Start-Service docker -ErrorAction SilentlyContinue
-
-                        # Wait for Docker to be responsive
-                        $waitCount = 0
-                        while ($waitCount -lt 12) {
-                            $dockerCheck = docker info 2>$null
-                            if ($LASTEXITCODE -eq 0) { break }
-                            $waitCount++
-                            Start-Sleep -Seconds 5
+                        $natMappings = Get-NetNatStaticMapping -ErrorAction SilentlyContinue
+                        if ($natMappings) {
+                            # Get current and bumped ports to clean
+                            $currentPorts = @(
+                                $containerParams.WebClientPort,
+                                $containerParams.FileSharePort,
+                                $containerParams.ManagementServicesPort,
+                                $containerParams.ClientServicesPort,
+                                # Also clean the NEXT set of bumped ports
+                                ($containerParams.WebClientPort + $portBump),
+                                ($containerParams.FileSharePort + $portBump),
+                                ($containerParams.ManagementServicesPort + $portBump),
+                                ($containerParams.ClientServicesPort + $portBump)
+                            )
+                            # Add HTTPS ports
+                            foreach ($param in $containerParams.additionalParameters) {
+                                if ($param -match '-p\s*(\d+):443') {
+                                    $currentPorts += [int]$Matches[1]
+                                    $currentPorts += ([int]$Matches[1] + $portBump)
+                                }
+                            }
+                            $stuckMappings = $natMappings | Where-Object {
+                                $_.ExternalPort -in $currentPorts -or $_.InternalPort -in $currentPorts
+                            }
+                            foreach ($mapping in $stuckMappings) {
+                                Write-Log "Removing NAT static mapping for port $($mapping.ExternalPort)" -Level WARN
+                                Remove-NetNatStaticMapping -StaticMappingID $mapping.StaticMappingID -ErrorAction SilentlyContinue
+                            }
+                            if ($stuckMappings) {
+                                Write-Log "Cleared $($stuckMappings.Count) NAT static mappings" -Level INFO
+                                Start-Sleep -Seconds 2
+                            }
                         }
-                        Write-Log "Docker service restarted" -Level SUCCESS
                     } catch {
-                        Write-Log "Service restart warning: $($_.Exception.Message)" -Level WARN
+                        Write-Log "NAT cleanup skipped: $($_.Exception.Message)" -Level WARN
                     }
 
-                    Write-Log "Retrying container creation..." -Level INFO
+                    # Bump ports significantly to avoid stuck HNS reservations
+                    Write-Log "Finding alternative ports (bumping by +$portBump)..." -Level WARN
+
+                    $containerParams.WebClientPort += $portBump
+                    $containerParams.FileSharePort += $portBump
+                    $containerParams.ManagementServicesPort += $portBump
+                    $containerParams.ClientServicesPort += $portBump
+
+                    # Calculate new HTTPS port
+                    $currentHttps = 9499
+                    foreach ($param in $containerParams.additionalParameters) {
+                        if ($param -match '-p\s*(\d+):443') {
+                            $currentHttps = [int]$Matches[1]
+                            break
+                        }
+                    }
+                    $newHttpsPort = $currentHttps + $portBump
+
+                    $containerParams.publishPorts = @(
+                        $containerParams.WebClientPort,
+                        $containerParams.FileSharePort,
+                        $newHttpsPort,
+                        $containerParams.ManagementServicesPort,
+                        $containerParams.ClientServicesPort
+                    )
+                    $containerParams.additionalParameters = @("--restart=unless-stopped", "-p ${newHttpsPort}:443")
+
+                    Write-Log "New ports - Web: $($containerParams.WebClientPort), Dev: $($containerParams.FileSharePort), HTTPS: $newHttpsPort" -Level INFO
+                    Write-Log "Retrying container creation with new ports..." -Level INFO
                     Start-Sleep -Seconds 5
                 }
             }
@@ -858,18 +1054,26 @@ try {
     }
 
     # Step 4: Get credentials
-    if ($NonInteractive -and $Password) {
-        # Create credential from parameters
+    if ($NonInteractive -and $Auth -eq 'NavUserPassword') {
+        # Non-interactive mode with NavUserPassword requires password parameter
+        if (-not $Password) {
+            throw "Password is required for NavUserPassword authentication in non-interactive mode. Use -Password parameter."
+        }
         $securePassword = ConvertTo-SecureString $Password -AsPlainText -Force
         $credential = New-Object System.Management.Automation.PSCredential ($Username, $securePassword)
-        Write-Log "Using credentials from parameters"
+        Write-Log "Using credentials from parameters (user: $Username)"
     }
     elseif ($Auth -eq 'Windows') {
         # Windows auth - no credentials needed for container, use current user
         $credential = $null
         Write-Log "Using Windows authentication"
     }
+    elseif ($NonInteractive) {
+        # Non-interactive mode but no password provided and not Windows auth
+        throw "Non-interactive mode requires either -Auth Windows or -Password parameter for NavUserPassword auth"
+    }
     else {
+        # Interactive mode - prompt for credentials
         Write-Host ""
         $credential = Get-Credential -Message "Enter credentials for BC Container admin user"
         if (-not $credential) {
@@ -915,6 +1119,7 @@ try {
         Ports = $ports
         IncludeTestToolkit = $includeTestToolkit
         MemoryLimit = $defaultMemoryLimit
+        AuthType = $Auth
     }
 
     # Add credential if NavUserPassword auth
