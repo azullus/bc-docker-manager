@@ -61,7 +61,7 @@ export default function DashboardPage() {
       // Refresh container list
       await fetchContainers();
     } catch (err) {
-      toast.error(`Action failed: ${(err as Error).message}`);
+      toast.error(`Action failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [fetchContainers]);
 

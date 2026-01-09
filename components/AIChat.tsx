@@ -3,10 +3,146 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { AIMessage } from '@/lib/types';
+import { sendAIMessage, isElectron, getSetting } from '@/lib/electron-api';
 
 interface AIChatProps {
   initialContext?: string;
   initialPrompt?: string | null;
+}
+
+// Pre-canned responses for common issues when no API key is configured
+const OFFLINE_RESPONSES: Record<string, string> = {
+  "container won't start": `## Common Causes for Container Startup Failures
+
+1. **Port Conflicts**
+   - Check if ports 80, 443, 7046-7049 are already in use
+   - Run: \`netstat -an | findstr :80\`
+   - Solution: Stop conflicting services or use different ports
+
+2. **HNS Networking Issues**
+   - Windows NAT can have stale port reservations
+   - Run as Admin: \`net stop hns && net start hns\`
+   - Then restart Docker Desktop
+
+3. **Insufficient Memory**
+   - BC containers need 4-8GB RAM minimum
+   - Check Docker Desktop settings for memory allocation
+
+4. **Docker Not Running**
+   - Ensure Docker Desktop is running
+   - Check: \`docker info\`
+
+5. **Image Pull Failures**
+   - Verify internet connectivity
+   - Check: \`docker pull mcr.microsoft.com/businesscentral\`
+
+---
+*For AI-powered assistance, add your Anthropic API key in Settings.*`,
+
+  "performance": `## Diagnosing BC Container Performance Issues
+
+1. **Check Memory Usage**
+   - BC containers need 6-8GB for optimal performance
+   - Increase Docker memory in Docker Desktop > Settings > Resources
+
+2. **Database Optimization**
+   - Run: \`Invoke-NavContainerCodeunit -containerName <name> -Codeunit 5500\`
+   - This optimizes database indexes
+
+3. **Service Tier Issues**
+   - Check NST logs: \`Get-BcContainerEventLog -containerName <name>\`
+   - Look for memory pressure or deadlock messages
+
+4. **Hyper-V Isolation Overhead**
+   - Consider using \`-isolation process\` if host and container OS match
+   - This reduces overhead significantly
+
+5. **Extension Count**
+   - Too many extensions slow startup
+   - Remove unused test extensions
+
+---
+*For AI-powered assistance, add your Anthropic API key in Settings.*`,
+
+  "license": `## Managing BC Container Licenses
+
+1. **Import a License File**
+   \`\`\`powershell
+   Import-BcContainerLicense -containerName <name> -licenseFile "C:\\path\\to\\license.flf"
+   \`\`\`
+
+2. **Check Current License**
+   \`\`\`powershell
+   Get-BcContainerLicenseInformation -containerName <name>
+   \`\`\`
+
+3. **Cronus Demo License**
+   - Sandbox images include a demo license
+   - Limited to 5 user sessions
+   - Expires after evaluation period
+
+4. **Developer License**
+   - Request from PartnerSource/Microsoft
+   - Upload via BC web client > Help > About
+
+---
+*For AI-powered assistance, add your Anthropic API key in Settings.*`,
+
+  "extension": `## Troubleshooting AL Extension Deployment Errors
+
+1. **Compilation Errors**
+   - Check Output window in VS Code
+   - Ensure all dependencies are listed in app.json
+
+2. **Permission Errors**
+   - Ensure you're using a Super user
+   - Check \`User Card > Permissions\` in BC
+
+3. **Package File Issues**
+   \`\`\`powershell
+   # Unpublish first if updating
+   Unpublish-BcContainerApp -containerName <name> -appName "YourApp"
+
+   # Then publish
+   Publish-BcContainerApp -containerName <name> -appFile "C:\\path\\app.app" -skipVerification
+   \`\`\`
+
+4. **Synchronization Errors**
+   - Use \`-syncMode ForceSync\` for dev containers
+   - Never use ForceSync in production!
+
+5. **Dependency Issues**
+   - Check that base app version matches your app.json
+   - Update dependencies: \`"application": ">=20.0.0.0"\`
+
+---
+*For AI-powered assistance, add your Anthropic API key in Settings.*`,
+};
+
+function getOfflineResponse(query: string): string {
+  const lowerQuery = query.toLowerCase();
+
+  if (lowerQuery.includes("won't start") || lowerQuery.includes("not start") || lowerQuery.includes("startup")) {
+    return OFFLINE_RESPONSES["container won't start"];
+  }
+  if (lowerQuery.includes("slow") || lowerQuery.includes("performance") || lowerQuery.includes("memory")) {
+    return OFFLINE_RESPONSES["performance"];
+  }
+  if (lowerQuery.includes("license") || lowerQuery.includes("renew")) {
+    return OFFLINE_RESPONSES["license"];
+  }
+  if (lowerQuery.includes("extension") || lowerQuery.includes("publish") || lowerQuery.includes("al ")) {
+    return OFFLINE_RESPONSES["extension"];
+  }
+
+  return `I can help with common BC container issues. Here are some topics I have documentation for:
+
+- **Container startup failures** - port conflicts, HNS issues, memory problems
+- **Performance issues** - slow queries, memory optimization
+- **License management** - importing and checking licenses
+- **Extension deployment** - publishing AL apps, sync errors
+
+Try asking about one of these topics, or add your Anthropic API key in **Settings** for full AI-powered assistance.`;
 }
 
 export default function AIChat({ initialContext, initialPrompt }: AIChatProps) {
@@ -80,30 +216,64 @@ How can I help you today?`,
     setLoading(true);
 
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          context: initialContext,
-        }),
-      });
+      // Check if we're in Electron mode and have an API key
+      let responseContent: string;
 
-      const data = await response.json();
+      if (isElectron()) {
+        // Use Electron IPC - this handles both online and offline modes
+        try {
+          const chatMessages = [...messages, userMessage]
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+          const result = await sendAIMessage(chatMessages);
+          responseContent = result.content;
+        } catch {
+          // If API call fails, use offline response
+          responseContent = getOfflineResponse(userMessage.content);
+        }
+      } else {
+        // Web mode - check for API key first
+        const apiKey = await getSetting<string>('anthropicApiKey');
+
+        if (!apiKey) {
+          // No API key - use offline responses
+          responseContent = getOfflineResponse(userMessage.content);
+        } else {
+          // Has API key - try API call
+          const response = await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [...messages, userMessage],
+              context: initialContext,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          responseContent = data.message || getOfflineResponse(userMessage.content);
+        }
+      }
 
       const assistantMessage: AIMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: data.message || 'I apologize, but I was unable to generate a response.',
+        content: responseContent,
         timestamp: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch {
+      // Fallback to offline response on any error
+      const offlineContent = getOfflineResponse(input.trim());
       setMessages((prev) => [...prev, {
-        id: `error-${Date.now()}`,
+        id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.',
+        content: offlineContent,
         timestamp: new Date().toISOString(),
       }]);
     } finally {
