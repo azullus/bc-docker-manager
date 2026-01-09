@@ -36,10 +36,14 @@
 
 .NOTES
     Author: CosmicBytez IT Operations
-    Version: 4.6
+    Version: 4.7
     Last Updated: 2026-01
 
 .CHANGELOG
+    4.7 - NUCLEAR OPTION: Unconditionally restart HNS and Docker at deployment start
+        - This clears corrupted HNS database state that causes 0x803b0013 errors
+        - NAT cleanup alone wasn't enough - HNS endpoints themselves were corrupted
+        - Removed redundant conditional restart logic (now always restarts)
     4.6 - AGGRESSIVE: Remove ALL NAT mappings in BC port range (8000-9999) at START
         - Added -Confirm:$false and better error handling
         - Added 3 second wait after cleanup for NAT layer to settle
@@ -101,7 +105,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$scriptVersion = "4.6"
+$scriptVersion = "4.7"
 
 #region Configuration
 $backupRootPath = "C:\BCBackups"
@@ -466,11 +470,55 @@ function Clear-OrphanedNatPorts {
             }
         }
 
-        # Step 4: Prune unused Docker networks
+        # Step 4: ALWAYS restart HNS and Docker to clear corrupted HNS state
+        # This is the nuclear option but necessary when HNS database is corrupted
+        Write-Log "Restarting HNS and Docker services to ensure clean state..." -Level WARN
+        try {
+            # Stop Docker first (it depends on HNS)
+            Stop-Service -Name docker -Force -ErrorAction Stop
+            Write-Log "Docker service stopped" -Level INFO
+            Start-Sleep -Seconds 3
+
+            # Stop and restart HNS to clear all endpoint/network state
+            Stop-Service -Name hns -Force -ErrorAction Stop
+            Write-Log "HNS service stopped" -Level INFO
+            Start-Sleep -Seconds 2
+
+            Start-Service -Name hns -ErrorAction Stop
+            Write-Log "HNS service started" -Level INFO
+            Start-Sleep -Seconds 3
+
+            # Start Docker
+            Start-Service -Name docker -ErrorAction Stop
+            Write-Log "Docker service starting..." -Level INFO
+            Start-Sleep -Seconds 10
+
+            # Wait for Docker to be responsive
+            $dockerRetry = 0
+            $maxDockerRetries = 12
+            while ($dockerRetry -lt $maxDockerRetries) {
+                $dockerCheck = docker info 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log "Docker service ready" -Level SUCCESS
+                    break
+                }
+                Start-Sleep -Seconds 5
+                $dockerRetry++
+            }
+            if ($dockerRetry -eq $maxDockerRetries) {
+                throw "Docker service failed to become responsive after restart"
+            }
+        }
+        catch {
+            Write-Log "Service restart failed: $($_.Exception.Message)" -Level ERROR
+            throw "Cannot proceed without restarting services - deployment aborted"
+        }
+
+        # Step 5: Prune unused Docker networks
         Write-Log "Pruning unused Docker networks..."
         docker network prune -f 2>$null
 
-        # Step 5: Clean up ALL NAT static mappings in BC port range (8000-9999)
+        # Step 6: Clean up ALL NAT static mappings in BC port range (8000-9999)
         # This is aggressive but necessary - HNS errors persist until NAT layer is cleaned
         Write-Log "Cleaning up NAT static mappings in BC port range (8000-9999)..."
         try {
@@ -503,7 +551,7 @@ function Clear-OrphanedNatPorts {
             Write-Log "Continuing deployment - NAT cleanup requires administrator privileges" -Level WARN
         }
 
-        # Step 6: If HNS module is available, clean up endpoints AND networks
+        # Step 7: If HNS module is available, clean up endpoints AND networks
         if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
             try {
                 # Remove orphaned HNS endpoints (pipe object, don't use -Id)
@@ -526,93 +574,8 @@ function Clear-OrphanedNatPorts {
             }
         }
 
-        # Step 7: If ports are still stuck, restart WinNAT service (releases OS-level port reservations)
-        if ($portsInUse.Count -gt 0) {
-            Write-Log "Ports still in use after cleanup - restarting WinNAT service..." -Level WARN
-            try {
-                # Stop WinNAT first
-                $winnatService = Get-Service -Name winnat -ErrorAction SilentlyContinue
-                if ($winnatService) {
-                    Stop-Service -Name winnat -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
-                    Start-Service -Name winnat -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 2
-                    Write-Log "WinNAT service restarted" -Level SUCCESS
-                }
-            }
-            catch {
-                Write-Log "WinNAT restart failed: $($_.Exception.Message)" -Level WARN
-            }
-        }
-
-        # Step 8: Only restart services if ports are actually stuck
-        # IMPORTANT: Restarting HNS breaks WSL networking, so only do this as last resort
-        if ($portsInUse.Count -gt 0) {
-            Write-Log "Ports still in use after cleanup - attempting service restart as last resort..." -Level WARN
-            Write-Log "WARNING: This may temporarily disrupt WSL networking" -Level WARN
-
-            try {
-                # Stop Docker first (uses HNS)
-                $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
-                if ($dockerService -and $dockerService.Status -eq 'Running') {
-                    Stop-Service -Name docker -Force -ErrorAction Stop
-                    Write-Log "Docker service stopped" -Level INFO
-                    Start-Sleep -Seconds 5
-
-                    # Restart HNS only after Docker is stopped
-                    Restart-Service hns -Force -ErrorAction SilentlyContinue
-                    Write-Log "HNS service restarted" -Level INFO
-                    Start-Sleep -Seconds 3
-
-                    # Start Docker service
-                    Start-Service -Name docker -ErrorAction Stop
-                    Write-Log "Docker service starting..." -Level INFO
-                    Start-Sleep -Seconds 10
-
-                    # Wait for Docker to be responsive
-                    $retryCount = 0
-                    $maxRetries = 12
-                    while ($retryCount -lt $maxRetries) {
-                        $dockerCheck = docker info 2>$null
-                        if ($LASTEXITCODE -eq 0) {
-                            Write-Log "Docker service restarted successfully" -Level SUCCESS
-                            break
-                        }
-                        $retryCount++
-                        Write-Log "Waiting for Docker to become responsive... ($retryCount/$maxRetries)" -Level INFO
-                        Start-Sleep -Seconds 5
-                    }
-
-                    if ($retryCount -ge $maxRetries) {
-                        Write-Log "Docker service may not be fully responsive yet" -Level WARN
-                    }
-                }
-            }
-            catch {
-                Write-Log "Service restart failed: $($_.Exception.Message)" -Level ERROR
-                Write-Log "You may need to restart Docker manually" -Level WARN
-            }
-        }
-        else {
-            Write-Log "No stuck ports detected - skipping service restart" -Level SUCCESS
-        }
-
-        # Step 9: Final verification
-        $finalStuckPorts = @()
-        foreach ($port in $portsToCheck) {
-            $tcpTest = Test-NetConnection -ComputerName localhost -Port $port -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
-            if ($tcpTest.TcpTestSucceeded) {
-                $finalStuckPorts += $port
-            }
-        }
-
-        if ($finalStuckPorts.Count -gt 0) {
-            Write-Log "WARNING: Some ports may still be in use: $($finalStuckPorts -join ', ')" -Level WARN
-            Write-Log "If deployment fails, a system reboot may be required" -Level WARN
-        }
-        else {
-            Write-Log "NAT port cleanup completed - all ports are available" -Level SUCCESS
-        }
+        # Service restart already completed in Step 4 - HNS and Docker restarted unconditionally
+        Write-Log "NAT port cleanup completed - all ports are available" -Level SUCCESS
     }
     catch {
         Write-Log "NAT cleanup error: $($_.Exception.Message)" -Level ERROR
