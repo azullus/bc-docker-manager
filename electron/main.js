@@ -197,6 +197,8 @@ function setupIpcHandlers() {
         return;
       }
 
+      // Run PowerShell with proper flags
+      // NOTE: App must be run as administrator for NetNat cmdlets to work
       const ps = spawn('powershell.exe', [
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
@@ -272,9 +274,58 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+// Check if running with administrator privileges (Windows only)
+function isAdmin() {
+  if (process.platform !== 'win32') return true;
+
+  try {
+    // Try to open a handle to the system32 directory with write access
+    // Only admin processes can do this
+    const { execSync } = require('child_process');
+    execSync('net session', { windowsHide: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Request elevation if not running as admin
+function requestElevation() {
+  const { shell } = require('electron');
+  const { spawn } = require('child_process');
+
+  // Get the executable path
+  const exePath = app.getPath('exe');
+
+  // Show elevation dialog
+  dialog.showMessageBoxSync({
+    type: 'warning',
+    title: 'Administrator Privileges Required',
+    message: 'BC Container Manager requires administrator privileges to manage Docker containers and network settings.',
+    detail: 'The application will now restart with administrator privileges. Click OK to continue.',
+    buttons: ['OK', 'Cancel']
+  });
+
+  // Relaunch with elevation using PowerShell Start-Process
+  spawn('powershell.exe', [
+    '-NoProfile',
+    '-Command',
+    `Start-Process -FilePath "${exePath}" -Verb RunAs`
+  ], { detached: true, stdio: 'ignore' });
+
+  app.quit();
+}
+
 // App lifecycle events
 
 app.whenReady().then(() => {
+  // Check for admin privileges on Windows
+  if (process.platform === 'win32' && !isAdmin()) {
+    console.log('Not running as administrator - requesting elevation...');
+    requestElevation();
+    return;
+  }
+
   // Register custom protocol for static file serving
   registerCustomProtocol();
 
