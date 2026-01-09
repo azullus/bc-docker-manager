@@ -36,10 +36,13 @@
 
 .NOTES
     Author: CosmicBytez IT Operations
-    Version: 4.5
+    Version: 4.6
     Last Updated: 2026-01
 
 .CHANGELOG
+    4.6 - AGGRESSIVE: Remove ALL NAT mappings in BC port range (8000-9999) at START
+        - Added -Confirm:$false and better error handling
+        - Added 3 second wait after cleanup for NAT layer to settle
     4.5 - Added NAT static mapping cleanup during retry loop (fixes persistent 0x803b0013)
         - Cleans both current and bumped ports before retry
         - This was the missing piece - NAT mappings persist after HNS cleanup
@@ -98,7 +101,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$scriptVersion = "4.5"
+$scriptVersion = "4.6"
 
 #region Configuration
 $backupRootPath = "C:\BCBackups"
@@ -467,22 +470,37 @@ function Clear-OrphanedNatPorts {
         Write-Log "Pruning unused Docker networks..."
         docker network prune -f 2>$null
 
-        # Step 5: Clean up NAT static mappings (releases port bindings at OS level)
-        Write-Log "Cleaning up NAT static mappings..."
+        # Step 5: Clean up ALL NAT static mappings in BC port range (8000-9999)
+        # This is aggressive but necessary - HNS errors persist until NAT layer is cleaned
+        Write-Log "Cleaning up NAT static mappings in BC port range (8000-9999)..."
         try {
-            $natMappings = Get-NetNatStaticMapping -ErrorAction SilentlyContinue
+            $natMappings = Get-NetNatStaticMapping -ErrorAction Stop
             if ($natMappings) {
-                foreach ($port in $portsToCheck) {
-                    $stuckMappings = $natMappings | Where-Object { $_.ExternalPort -eq $port -or $_.InternalPort -eq $port }
-                    foreach ($mapping in $stuckMappings) {
-                        Write-Log "Removing NAT static mapping for port $($mapping.ExternalPort)" -Level WARN
-                        Remove-NetNatStaticMapping -StaticMappingID $mapping.StaticMappingID -ErrorAction SilentlyContinue
+                # Remove ALL mappings in BC port range to ensure clean slate
+                $bcPortMappings = $natMappings | Where-Object {
+                    ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
+                    ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
+                }
+                $removedCount = 0
+                foreach ($mapping in $bcPortMappings) {
+                    try {
+                        Remove-NetNatStaticMapping -StaticMappingID $mapping.StaticMappingID -Confirm:$false -ErrorAction Stop
+                        $removedCount++
+                    } catch {
+                        Write-Log "Could not remove NAT mapping for port $($mapping.ExternalPort): $($_.Exception.Message)" -Level WARN
                     }
+                }
+                if ($removedCount -gt 0) {
+                    Write-Log "Removed $removedCount NAT static mappings" -Level INFO
+                    Start-Sleep -Seconds 3  # Let NAT layer settle
+                } else {
+                    Write-Log "No NAT static mappings found in BC port range" -Level INFO
                 }
             }
         }
         catch {
-            Write-Log "NAT static mapping cleanup skipped: $($_.Exception.Message)" -Level WARN
+            Write-Log "NAT static mapping cleanup failed: $($_.Exception.Message)" -Level WARN
+            Write-Log "Continuing deployment - NAT cleanup requires administrator privileges" -Level WARN
         }
 
         # Step 6: If HNS module is available, clean up endpoints AND networks
