@@ -26,14 +26,22 @@ extraResources:
     to: scripts/
     filter:
       - "**/*"
+  - from: assets/
+    to: assets/
+    filter:
+      - "icon.png"
+      - "icon.ico"
 
 # Windows configuration
 win:
+  icon: assets/icon.ico
   target:
     - target: nsis
       arch:
         - x64
   artifactName: ${productName}-Setup-${version}.${ext}
+  # Disable code signing (no certificate available)
+  signAndEditExecutable: false
 
 # NSIS installer configuration
 nsis:

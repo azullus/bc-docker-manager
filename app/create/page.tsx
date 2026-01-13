@@ -17,6 +17,9 @@ import {
   runPowerShell,
 } from '@/lib/electron-api';
 import { useDeployment } from '@/lib/deployment-context';
+import { detectHNSError, HNSError } from '@/lib/hns-error-detector';
+import HNSErrorRecovery from '@/components/HNSErrorRecovery';
+import NetworkDiagnostics from '@/components/NetworkDiagnostics';
 
 // BC Version options matching Install-BC-Helper.ps1
 const BC_VERSIONS = [
@@ -61,6 +64,8 @@ export default function CreateContainerPage() {
     installTestToolkit: true,
     enableScheduledBackups: true,
   });
+  const [hnsError, setHnsError] = useState<HNSError | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
 
   // Use global deployment state
@@ -77,7 +82,18 @@ export default function CreateContainerPage() {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [output]);
+
+    // Detect HNS errors when deployment fails
+    if (status === 'error' && output.length > 0) {
+      const detectedError = detectHNSError(output);
+      if (detectedError) {
+        setHnsError(detectedError);
+      }
+    } else if (status === 'running') {
+      // Clear error when new deployment starts
+      setHnsError(null);
+    }
+  }, [output, status]);
 
   const generateContainerName = (version: string): string => {
     const versionPart = version.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -102,6 +118,9 @@ export default function CreateContainerPage() {
       toast.error('Please enter a password for NavUserPassword authentication');
       return;
     }
+
+    // Clear previous error state
+    setHnsError(null);
 
     // Start global deployment tracking
     startDeployment(formData.containerName, formData.version);
@@ -154,7 +173,7 @@ export default function CreateContainerPage() {
         addOutput('');
         addOutput(`✗ Deployment failed with exit code ${result.exitCode}`);
         if (result.stderr) addOutput(result.stderr);
-        toast.error('Container deployment failed');
+        toast.error('Container deployment failed - check for network issues');
       }
     } catch (error) {
       setDeploymentStatus('error');
@@ -192,6 +211,43 @@ export default function CreateContainerPage() {
           Deploy a new Business Central Docker container
         </p>
       </div>
+
+      {/* HNS Error Recovery Panel */}
+      {hnsError && (
+        <div className="mb-8">
+          <HNSErrorRecovery
+            error={hnsError}
+            onRetry={handleDeploy}
+            onDiagnosticsComplete={() => {
+              setShowDiagnostics(true);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Network Diagnostics Panel (toggle) */}
+      {showDiagnostics && (
+        <div className="mb-8">
+          <NetworkDiagnostics
+            onComplete={() => {
+              // Diagnostics complete - user can now retry
+            }}
+          />
+        </div>
+      )}
+
+      {/* Diagnostics Toggle Button */}
+      {!showDiagnostics && !hnsError && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-2"
+          >
+            <Info className="w-4 h-4" />
+            {showDiagnostics ? 'Hide' : 'Show'} Network Diagnostics
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Configuration Form */}

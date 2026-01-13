@@ -146,6 +146,8 @@ function setupIpcHandlers() {
     'scripts/Install-BC-Helper.ps1',
     'scripts/Backup-BC-Container.ps1',
     'scripts/Restore-BC-Container.ps1',
+    'scripts/Fix-HNS-State.ps1',
+    'scripts/Diagnose-HNS-Ports.ps1',
   ];
 
   ipcMain.handle('run-powershell', async (event, { script, args }) => {
@@ -175,17 +177,19 @@ function setupIpcHandlers() {
         return arg;
       });
 
-      // Log script path for debugging (not args to avoid exposing passwords)
-      console.log('PowerShell script path:', scriptPath);
-      console.log('Script exists:', require('fs').existsSync(scriptPath));
-      mainWindow?.webContents.send('powershell-output', {
-        type: 'stdout',
-        data: `[DEBUG] Script path: ${scriptPath}\n`
-      });
-      mainWindow?.webContents.send('powershell-output', {
-        type: 'stdout',
-        data: `[DEBUG] Args: ${safeArgs.join(' ')}\n`
-      });
+      // Log script path for debugging (only in development mode)
+      if (isDev) {
+        console.log('PowerShell script path:', scriptPath);
+        console.log('Script exists:', require('fs').existsSync(scriptPath));
+        mainWindow?.webContents.send('powershell-output', {
+          type: 'stdout',
+          data: `[DEBUG] Script path: ${scriptPath}\n`
+        });
+        mainWindow?.webContents.send('powershell-output', {
+          type: 'stdout',
+          data: `[DEBUG] Args: ${safeArgs.join(' ')}\n`
+        });
+      }
 
       // Check if script exists
       if (!require('fs').existsSync(scriptPath)) {

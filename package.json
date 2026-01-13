@@ -15,12 +15,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:dev": "concurrently \"next dev -p 3333\" \"wait-on http://localhost:3333 && electron .\"",
     "electron:build": "npm run build:electron && electron-builder",
     "electron:build:win": "npm run build:electron && electron-builder --win",
     "electron:build:portable": "npm run build:electron && electron-builder --win portable",
-    "electron:pack": "npm run build:electron && electron-builder --dir",
-    "postinstall": "electron-builder install-app-deps"
+    "electron:pack": "npm run build:electron && electron-builder --dir"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

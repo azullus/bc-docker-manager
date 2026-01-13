@@ -196,5 +196,4 @@ BC-Docker-Manager/
 | Jest Tests | Passing | Run with `npm test` |
 
 ### Known Issues
-- Missing proper Windows icons (.ico, .png) - using SVG only
 - RAG fallback integrated via OFFLINE-AI-CHATBOT

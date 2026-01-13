@@ -16,6 +16,7 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  Box,
 } from 'lucide-react';
 import { isElectron, getDockerInfo } from '@/lib/electron-api';
 import { useDeployment } from '@/lib/deployment-context';
@@ -23,6 +24,7 @@ import DeploymentModal from '@/components/DeploymentModal';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Docker Setup', href: '/setup', icon: Box },
   { name: 'Create Container', href: '/create', icon: PlusCircle, electronOnly: true },
   { name: 'Backups', href: '/backups', icon: HardDrive },
   { name: 'Troubleshoot', href: '/troubleshoot', icon: MessageCircle },
