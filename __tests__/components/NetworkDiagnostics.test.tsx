@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import NetworkDiagnostics from '@/components/NetworkDiagnostics';
 
 // Mock electron-api
@@ -71,7 +71,9 @@ describe('NetworkDiagnostics', () => {
     it('should call runPowerShell with correct script', async () => {
       render(<NetworkDiagnostics onComplete={mockOnComplete} />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(mockRunPowerShell).toHaveBeenCalledWith(
@@ -79,9 +81,14 @@ describe('NetworkDiagnostics', () => {
           []
         );
       });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText(/Last scan:/)).toBeInTheDocument();
+      });
     });
 
-    it('should show loading state during scan', () => {
+    it('should show loading state during scan', async () => {
       mockRunPowerShell.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({
           stdout: 'output',
@@ -92,12 +99,19 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       expect(screen.getByText('Scanning...')).toBeInTheDocument();
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Scan Network')).toBeInTheDocument();
+      });
     });
 
-    it('should disable button during scan', () => {
+    it('should disable button during scan', async () => {
       mockRunPowerShell.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({
           stdout: 'output',
@@ -108,33 +122,54 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       const button = screen.getByText('Scanning...').closest('button');
       expect(button).toBeDisabled();
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Scan Network')).toBeInTheDocument();
+      });
     });
 
-    it('should show loading toast during scan', () => {
+    it('should show loading toast during scan', async () => {
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       expect(toast.loading).toHaveBeenCalledWith(
         'Running network diagnostics...',
         { id: 'diagnostics' }
       );
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText(/Last scan:/)).toBeInTheDocument();
+      });
     });
 
     it('should show success toast on completion', async () => {
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
           'Diagnostics completed',
           { id: 'diagnostics' }
         );
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText(/Last scan:/)).toBeInTheDocument();
       });
     });
 
@@ -147,13 +182,20 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
           'Diagnostics failed',
           { id: 'diagnostics' }
         );
+      });
+
+      // Wait for running state to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Scanning...')).not.toBeInTheDocument();
       });
     });
 
@@ -166,10 +208,17 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics onComplete={mockOnComplete} />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(mockOnComplete).toHaveBeenCalledWith(['Line 1', 'Line 2', 'Line 3']);
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText(/Last scan:/)).toBeInTheDocument();
       });
     });
 
@@ -182,19 +231,28 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics onComplete={mockOnComplete} />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalled();
       });
 
       expect(mockOnComplete).not.toHaveBeenCalled();
+
+      // Wait for running state to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Scanning...')).not.toBeInTheDocument();
+      });
     });
 
     it('should update last run timestamp after scan', async () => {
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Last scan:/)).toBeInTheDocument();
@@ -212,7 +270,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Found 3 orphaned HNS endpoints/)).toBeInTheDocument();
@@ -228,7 +288,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Found 5 NAT static mappings/)).toBeInTheDocument();
@@ -244,7 +306,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Windows has excluded port ranges/)).toBeInTheDocument();
@@ -260,7 +324,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Docker service is not running/)).toBeInTheDocument();
@@ -276,7 +342,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/HNS.*is not running/)).toBeInTheDocument();
@@ -292,7 +360,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/HNS state appears clean/)).toBeInTheDocument();
@@ -308,7 +378,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.queryByText(/orphaned HNS endpoints that need cleanup/)).not.toBeInTheDocument();
@@ -326,7 +398,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText('View Full Diagnostic Output (3 lines)')).toBeInTheDocument();
@@ -342,15 +416,19 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
-        const summary = screen.getByText(/View Full Diagnostic Output/);
-        fireEvent.click(summary);
-
-        expect(screen.getByText('Test output line')).toBeInTheDocument();
-        expect(screen.getByText('Another line')).toBeInTheDocument();
+        expect(screen.getByText(/View Full Diagnostic Output/)).toBeInTheDocument();
       });
+
+      const summary = screen.getByText(/View Full Diagnostic Output/);
+      fireEvent.click(summary);
+
+      expect(screen.getByText('Test output line')).toBeInTheDocument();
+      expect(screen.getByText('Another line')).toBeInTheDocument();
     });
 
     it('should filter empty lines from output', async () => {
@@ -362,7 +440,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         // Should show 3 lines, not 6
@@ -373,7 +453,9 @@ describe('NetworkDiagnostics', () => {
     it('should hide placeholder after successful scan', async () => {
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.queryByText(/Click "Scan Network" to check/)).not.toBeInTheDocument();
@@ -387,13 +469,20 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
           'Execution failed',
           { id: 'diagnostics' }
         );
+      });
+
+      // Wait for running state to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Scanning...')).not.toBeInTheDocument();
       });
     });
 
@@ -402,13 +491,20 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
           'Diagnostics failed',
           { id: 'diagnostics' }
         );
+      });
+
+      // Wait for running state to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Scanning...')).not.toBeInTheDocument();
       });
     });
 
@@ -417,7 +513,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         const button = screen.getByText('Scan Network').closest('button');
@@ -437,7 +535,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.getByText(/Found 3 orphaned/)).toBeInTheDocument();
@@ -450,7 +550,9 @@ describe('NetworkDiagnostics', () => {
         exitCode: 0,
       });
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         expect(screen.queryByText(/Found 3 orphaned/)).not.toBeInTheDocument();
@@ -469,7 +571,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         // Verify the error message is displayed
@@ -486,7 +590,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         // Verify the warning message is displayed
@@ -503,7 +609,9 @@ describe('NetworkDiagnostics', () => {
 
       render(<NetworkDiagnostics />);
 
-      fireEvent.click(screen.getByText('Scan Network'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Scan Network'));
+      });
 
       await waitFor(() => {
         // Verify the info message is displayed

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import HNSErrorRecovery from '@/components/HNSErrorRecovery';
 import { HNSError } from '@/lib/hns-error-detector';
 
@@ -219,13 +219,20 @@ describe('HNSErrorRecovery', () => {
 
       // Click the first "Run Now" button (diagnostics)
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(mockRunPowerShell).toHaveBeenCalledWith(
           'scripts/Diagnose-HNS-Ports.ps1',
           []
         );
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
       });
     });
 
@@ -239,13 +246,20 @@ describe('HNSErrorRecovery', () => {
 
       // Click the second "Run Now" button (clean HNS state)
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[1]);
+      await act(async () => {
+        fireEvent.click(runButtons[1]);
+      });
 
       await waitFor(() => {
         expect(mockRunPowerShell).toHaveBeenCalledWith(
           'scripts/Fix-HNS-State.ps1',
           ['-Force']
         );
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
       });
     });
 
@@ -259,10 +273,17 @@ describe('HNSErrorRecovery', () => {
 
       // Click the third "Run Now" button (retry)
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[2]);
+      await act(async () => {
+        fireEvent.click(runButtons[2]);
+      });
 
       await waitFor(() => {
         expect(mockOnRetry).toHaveBeenCalled();
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
       });
     });
 
@@ -282,12 +303,19 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(mockOnDiagnosticsComplete).toHaveBeenCalledWith(
           expect.arrayContaining(['Diagnostics output', 'No issues found'])
         );
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
       });
     });
 
@@ -300,12 +328,19 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       expect(toast.loading).toHaveBeenCalledWith(
         'Running diagnostics...',
         expect.any(Object)
       );
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
+      });
     });
 
     it('should show success toast on successful completion', async () => {
@@ -317,13 +352,20 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
           'Diagnostics completed',
           expect.any(Object)
         );
+      });
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
       });
     });
 
@@ -342,13 +384,21 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
           'Diagnostics failed',
           expect.any(Object)
         );
+      });
+
+      // Wait for runningAction to be cleared (null)
+      await waitFor(() => {
+        // Button should not show "Running..." anymore
+        expect(screen.queryByText('Running...')).not.toBeInTheDocument();
       });
     });
 
@@ -371,16 +421,25 @@ describe('HNSErrorRecovery', () => {
 
       const runButtons = screen.getAllByText('Run Now');
 
-      // Click first button
-      fireEvent.click(runButtons[0]);
+      // Click first button (don't await - we want to test concurrent behavior)
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       // Try to click second button while first is running
-      fireEvent.click(runButtons[1]);
+      await act(async () => {
+        fireEvent.click(runButtons[1]);
+      });
 
       // Should show error toast for second click
       expect(toast.error).toHaveBeenCalledWith(
         'Please wait for the current action to complete'
       );
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
+      });
     });
   });
 
@@ -402,9 +461,16 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       expect(screen.getByText('Running...')).toBeInTheDocument();
+
+      // Wait for all state updates to complete
+      await waitFor(() => {
+        expect(screen.getByText('Completed')).toBeInTheDocument();
+      });
     });
 
     it('should show "Completed" state after successful execution', async () => {
@@ -416,7 +482,9 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Completed')).toBeInTheDocument();
@@ -432,7 +500,9 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         const completedButton = screen.getByText('Completed').closest('button');
@@ -457,7 +527,9 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('View Output (3 lines)')).toBeInTheDocument();
@@ -479,15 +551,19 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
-        // Click to expand the output
-        const summary = screen.getByText(/View Output/);
-        fireEvent.click(summary);
-
-        expect(screen.getByText('STDERR:')).toBeInTheDocument();
+        expect(screen.getByText(/View Output/)).toBeInTheDocument();
       });
+
+      // Click to expand the output
+      const summary = screen.getByText(/View Output/);
+      fireEvent.click(summary);
+
+      expect(screen.getByText('STDERR:')).toBeInTheDocument();
     });
   });
 
@@ -503,10 +579,17 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Script execution failed');
+      });
+
+      // Wait for runningAction to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Running...')).not.toBeInTheDocument();
       });
     });
 
@@ -521,10 +604,17 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButtons = screen.getAllByText('Run Now');
-      fireEvent.click(runButtons[0]);
+      await act(async () => {
+        fireEvent.click(runButtons[0]);
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Action failed');
+      });
+
+      // Wait for runningAction to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Running...')).not.toBeInTheDocument();
       });
     });
   });
@@ -554,13 +644,20 @@ describe('HNSErrorRecovery', () => {
       );
 
       const runButton = screen.getByText('Run Now');
-      fireEvent.click(runButton);
+      await act(async () => {
+        fireEvent.click(runButton);
+      });
 
       await waitFor(() => {
         expect(toast).toHaveBeenCalledWith(
           'Please restart Docker Desktop manually',
           expect.any(Object)
         );
+      });
+
+      // Wait for runningAction to be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Running...')).not.toBeInTheDocument();
       });
     });
   });
