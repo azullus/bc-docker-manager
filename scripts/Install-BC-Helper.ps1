@@ -36,10 +36,14 @@
 
 .NOTES
     Author: CosmicBytez IT Operations
-    Version: 4.8
-    Last Updated: 2026-01-09
+    Version: 4.9
+    Last Updated: 2026-01-13
 
 .CHANGELOG
+    4.9 - Changed default isolation mode from 'hyperv' to 'process'
+        - Process isolation avoids HNS port conflict issues on Windows 11/Server when OS versions match
+        - Added -Isolation parameter to allow override if needed
+        - Fixes persistent 0x803b0013 errors during container creation
     4.8 - CRITICAL FIX: Clean NAT mappings BEFORE restarting Docker (not after)
         - Docker recreates NAT mappings from persistent state when it starts
         - Previously cleaned AFTER Docker started, allowing recreation
@@ -106,11 +110,16 @@ param(
 
     # Non-interactive mode (for app deployment)
     [Parameter(Mandatory=$false)]
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+
+    # Container isolation mode (process is recommended on Windows 11 when OS versions match)
+    [Parameter(Mandatory=$false)]
+    [ValidateSet('process','hyperv')]
+    [string]$Isolation = 'process'
 )
 
 $ErrorActionPreference = 'Stop'
-$scriptVersion = "4.7"
+$scriptVersion = "4.9"
 
 #region Configuration
 $backupRootPath = "C:\BCBackups"
@@ -661,7 +670,7 @@ function New-BCContainerDeployment {
         accept_eula                = $true
         auth                       = $AuthType
         artifactUrl                = $ArtifactUrl
-        isolation                  = "hyperv"
+        isolation                  = $script:Isolation
         memoryLimit                = $MemoryLimit
         updateHosts                = $true
         useBestContainerOS         = $true

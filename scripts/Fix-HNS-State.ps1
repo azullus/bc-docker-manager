@@ -60,9 +60,9 @@ function Write-StatusMessage {
 
     $prefix = switch ($Level) {
         'Info'    { '[INFO]' }
-        'Success' { '[✓]' }
-        'Warning' { '[⚠]' }
-        'Error'   { '[✗]' }
+        'Success' { '[OK]' }
+        'Warning' { '[WARN]' }
+        'Error'   { '[FAIL]' }
     }
 
     Write-Host "$prefix $Message" -ForegroundColor $color
@@ -73,11 +73,11 @@ Write-Host "`n====== HNS State Cleanup for Business Central ======`n" -Foregroun
 # Pre-flight checks
 if (-not $Force) {
     Write-Host "This script will:" -ForegroundColor Yellow
-    Write-Host "  • Stop Docker and HNS services" -ForegroundColor White
-    Write-Host "  • Stop all running containers" -ForegroundColor White
-    Write-Host "  • Remove orphaned HNS endpoints" -ForegroundColor White
-    Write-Host "  • Clear NAT static mappings" -ForegroundColor White
-    Write-Host "  • Restart services`n" -ForegroundColor White
+    Write-Host "  - Stop Docker and HNS services" -ForegroundColor White
+    Write-Host "  - Stop all running containers" -ForegroundColor White
+    Write-Host "  - Remove orphaned HNS endpoints" -ForegroundColor White
+    Write-Host "  - Clear NAT static mappings" -ForegroundColor White
+    Write-Host "  - Restart services`n" -ForegroundColor White
 
     $response = Read-Host "Continue? (Y/N)"
     if ($response -ne 'Y' -and $response -ne 'y') {
@@ -256,10 +256,10 @@ try {
         if ($remainingBcMappings) {
             Write-StatusMessage "WARNING: $($remainingBcMappings.Count) NAT mappings still remain in BC port range" -Level Warning
         } else {
-            Write-StatusMessage "✓ No NAT static mappings in BC port range" -Level Success
+            Write-StatusMessage "[OK] No NAT static mappings in BC port range" -Level Success
         }
     } else {
-        Write-StatusMessage "✓ No NAT static mappings found" -Level Success
+        Write-StatusMessage "[OK] No NAT static mappings found" -Level Success
     }
 
     # Check HNS endpoints
@@ -268,7 +268,7 @@ try {
         if ($endpoints) {
             Write-StatusMessage "HNS endpoints: $($endpoints.Count) (Docker may have recreated some)" -Level Info
         } else {
-            Write-StatusMessage "✓ No HNS endpoints found" -Level Success
+            Write-StatusMessage "[OK] No HNS endpoints found" -Level Success
         }
     }
 

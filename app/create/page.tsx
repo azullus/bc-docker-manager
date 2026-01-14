@@ -127,13 +127,13 @@ export default function CreateContainerPage() {
 
     try {
       // Build PowerShell command
-      // This uses the Install-BC-Helper.ps1 script bundled with the app
-      const scriptPath = 'scripts/Install-BC-Helper.ps1';
+      // Uses Deploy-BC-Container.ps1 (docker-direct) to bypass HNS issues on Windows 11 24H2
+      const scriptPath = 'scripts/Deploy-BC-Container.ps1';
       const args: string[] = [
-        '-NonInteractive',  // Required for app deployment
         '-Version', formData.version,
         '-ContainerName', formData.containerName,
         '-Auth', formData.auth,
+        '-Isolation', 'process',  // Process isolation avoids HNS port conflicts
       ];
 
       if (formData.auth === 'NavUserPassword') {
@@ -158,7 +158,7 @@ export default function CreateContainerPage() {
         return arg;
       });
 
-      addOutput(`Executing: Install-BC-Helper.ps1 ${displayArgs.join(' ')}`);
+      addOutput(`Executing: Deploy-BC-Container.ps1 ${displayArgs.join(' ')}`);
       addOutput('');
 
       const result = await runPowerShell(scriptPath, args);

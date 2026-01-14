@@ -521,58 +521,74 @@ function registerIpcHandlers(ipcMain) {
       const info = await container.inspect();
       const containerName = info.Name.replace('/', '');
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const fileName = `${containerName}_${timestamp}.bak`;
+      // Get configured backup path
+      const settings = await loadSettings();
+      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
 
-      // Execute backup command inside container
-      const exec = await container.exec({
-        Cmd: [
-          'powershell', '-Command',
-          `Backup-SqlDatabase -ServerInstance localhost -Database CRONUS -BackupFile "C:\\Run\\my\\${fileName}" -CompressionOption On`
-        ],
-        AttachStdout: true,
-        AttachStderr: true,
-      });
+      // Use BcContainerHelper via PowerShell script for proper backup
+      // This handles database detection, backup creation, and file management
+      const { spawn } = require('child_process');
 
-      const stream = await exec.start({ hijack: true, stdin: false });
+      // Resolve script path based on dev/prod environment
+      const isDev = !require('electron').app.isPackaged;
+      let scriptPath;
+      if (isDev) {
+        scriptPath = path.join(__dirname, '..', 'scripts', 'Backup-BC-Container.ps1');
+      } else {
+        scriptPath = path.join(process.resourcesPath, 'scripts', 'Backup-BC-Container.ps1');
+      }
+
+      // Check if script exists
+      if (!fsSync.existsSync(scriptPath)) {
+        return { success: false, error: `Backup script not found at: ${scriptPath}` };
+      }
 
       return new Promise((resolve) => {
+        const ps = spawn('powershell.exe', [
+          '-NoProfile',
+          '-ExecutionPolicy', 'Bypass',
+          '-File', scriptPath,
+          '-ContainerName', containerName,
+          '-BackupPath', backupRoot,
+          '-Silent'
+        ]);
+
         let stdout = '';
         let stderr = '';
 
-        stream.on('data', (chunk) => {
-          const streamType = chunk.readUInt8(0);
-          const payload = chunk.slice(8).toString();
-          if (streamType === 1) stdout += payload;
-          else if (streamType === 2) stderr += payload;
+        ps.stdout.on('data', (data) => {
+          stdout += data.toString();
         });
 
-        // Handle stream errors
-        stream.on('error', (err) => {
-          resolve({ success: false, error: `Stream error: ${getErrorMessage(err)}` });
+        ps.stderr.on('data', (data) => {
+          stderr += data.toString();
         });
 
-        stream.on('end', async () => {
-          try {
-            const inspection = await exec.inspect();
-
-            if (inspection.ExitCode !== 0) {
-              resolve({ success: false, error: `Backup failed: ${stderr}` });
-            } else {
-              resolve({
-                success: true,
-                data: {
-                  id: `backup_${Date.now()}`,
-                  containerName,
-                  fileName,
-                  createdAt: new Date().toISOString(),
-                  status: 'completed',
-                }
-              });
-            }
-          } catch (inspectError) {
-            resolve({ success: false, error: `Inspect failed: ${getErrorMessage(inspectError)}` });
+        ps.on('close', (code) => {
+          if (code === 0) {
+            // Parse backup info from script output
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            resolve({
+              success: true,
+              data: {
+                id: `backup_${Date.now()}`,
+                containerName,
+                fileName: `${containerName}-backup.bak`,
+                filePath: path.join(backupRoot, containerName),
+                createdAt: new Date().toISOString(),
+                status: 'completed',
+              }
+            });
+          } else {
+            resolve({
+              success: false,
+              error: `Backup failed (exit code ${code}): ${stderr || stdout}`
+            });
           }
+        });
+
+        ps.on('error', (err) => {
+          resolve({ success: false, error: `Failed to start backup: ${getErrorMessage(err)}` });
         });
       });
     } catch (error) {

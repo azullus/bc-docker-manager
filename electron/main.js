@@ -144,6 +144,7 @@ function setupIpcHandlers() {
   // SECURITY: Whitelist of allowed scripts to prevent path traversal attacks
   const ALLOWED_SCRIPTS = [
     'scripts/Install-BC-Helper.ps1',
+    'scripts/Deploy-BC-Container.ps1',  // Docker-direct deployment (bypasses HNS issues)
     'scripts/Backup-BC-Container.ps1',
     'scripts/Restore-BC-Container.ps1',
     'scripts/Fix-HNS-State.ps1',

@@ -209,11 +209,11 @@ if ($bcPortsExcluded) {
 }
 
 if ($issues.Count -eq 0) {
-    Write-Host "✓ No issues detected - HNS state appears clean" -ForegroundColor Green
+    Write-Host "[OK] No issues detected - HNS state appears clean" -ForegroundColor Green
 } else {
-    Write-Host "⚠ Issues detected:" -ForegroundColor Yellow
+    Write-Host "[!] Issues detected:" -ForegroundColor Yellow
     foreach ($issue in $issues) {
-        Write-Host "  • $issue" -ForegroundColor Yellow
+        Write-Host "  - $issue" -ForegroundColor Yellow
     }
 
     Write-Host "`nSuggested fix:" -ForegroundColor Cyan
