@@ -37,12 +37,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate container name pattern
-    if (!containerId.startsWith('bcserver')) {
+    // Validate container name pattern - must contain 'bc' (case insensitive)
+    if (!/bc/i.test(containerId)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid container: Only bcserver-* containers are supported',
+          error: 'Invalid container: Container name must contain "bc"',
         },
         { status: 400 }
       );

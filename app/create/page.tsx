@@ -282,12 +282,12 @@ export default function CreateContainerPage() {
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, containerName: e.target.value }))
               }
-              placeholder="bcserver-latest"
+              placeholder="mybc-latest"
               disabled={status === 'running'}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-2">
-              Must start with &quot;bcserver-&quot; for the dashboard to detect it
+              Name must contain &quot;bc&quot; for the dashboard to detect it (e.g., mybc-test, bcserver-latest)
             </p>
           </div>
 

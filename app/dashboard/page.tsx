@@ -160,10 +160,10 @@ export default function DashboardPage() {
           <Container className="w-12 h-12 text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-white mb-2">No BC Containers Found</h3>
           <p className="text-gray-400 mb-4">
-            No containers matching the bcserver-* naming convention were found.
+            No containers with &quot;bc&quot; in the name were found.
           </p>
           <p className="text-sm text-gray-500">
-            Create a container using Install-BC-Helper.ps1 or Install-BC-Latest.ps1
+            Create a container using the Create Container wizard or Deploy-BC-Container.ps1
           </p>
         </div>
       )}

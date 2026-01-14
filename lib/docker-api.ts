@@ -63,9 +63,10 @@ function getDockerOptions(): Docker.DockerOptions {
 const docker = new Docker(getDockerOptions());
 
 /**
- * BC Container name pattern
+ * BC Container name pattern - matches containers with 'bc' in name (case insensitive)
+ * Supports: bcserver-*, mybc-*, bc-test, any-bc-container, etc.
  */
-const BC_CONTAINER_PATTERN = /^bcserver/;
+const BC_CONTAINER_PATTERN = /bc/i;
 
 /**
  * Lists all BC containers

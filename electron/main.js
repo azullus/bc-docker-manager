@@ -362,12 +362,12 @@ app.on('certificate-error', (event, webContents, urlString, error, certificate, 
 
     // Allow self-signed certs only for:
     // 1. localhost or 127.0.0.1 (loopback)
-    // 2. Container names starting with 'bcserver-' on local network (.local)
+    // 2. Container names containing 'bc' on local network (.local or no TLD)
     // 3. Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
     const isLoopback = hostname === 'localhost' || hostname === '127.0.0.1';
-    const isLocalBcContainer = hostname.startsWith('bcserver-') && (
+    const isLocalBcContainer = /bc/i.test(hostname) && (
       hostname.endsWith('.local') ||
-      !hostname.includes('.') // hostname without TLD (e.g., 'bcserver-test')
+      !hostname.includes('.') // hostname without TLD (e.g., 'mybc-test')
     );
     const isPrivateIp = /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)/.test(hostname);
 

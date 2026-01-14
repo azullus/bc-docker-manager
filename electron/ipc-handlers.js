@@ -127,8 +127,9 @@ const settingsPath = path.join(
   'settings.json'
 );
 
-// BC Container name pattern
-const BC_CONTAINER_PATTERN = /^bcserver/;
+// BC Container name pattern - matches containers with 'bc' in name (case insensitive)
+// Supports: bcserver-*, mybc-*, bc-test, any-bc-container, etc.
+const BC_CONTAINER_PATTERN = /bc/i;
 
 // Default backup root
 const DEFAULT_BACKUP_ROOT = 'C:\\BCBackups';
