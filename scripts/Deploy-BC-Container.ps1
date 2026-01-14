@@ -332,7 +332,7 @@ function New-BCContainerDirect {
         "--env", "multitenant=N"
         "--env", "isBcSandbox=Y"
         "--env", "enableApiServices=Y"
-        "--env", "useSSL=Y"
+        "--env", "useSSL=N"
         "--env", "ExitOnError=N"
         "--env", "filesOnly=False"
         "--env", "customNavSettings=EnableTaskScheduler=True"
