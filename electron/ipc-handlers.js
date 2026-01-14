@@ -456,52 +456,86 @@ function registerIpcHandlers(ipcMain) {
       const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
       const backups = [];
 
+      // Helper to find backups in a container directory
+      // Searches both direct .bak files AND timestamped subdirectories
+      async function findBackupsInDir(containerBackupDir, containerNameForBackup) {
+        const entries = await safeReadDir(containerBackupDir);
+
+        for (const entry of entries) {
+          const entryPath = path.join(containerBackupDir, entry);
+
+          try {
+            const entryStat = await fs.stat(entryPath);
+
+            if (entry.endsWith('.bak') && entryStat.isFile()) {
+              // Direct .bak file (legacy format)
+              backups.push({
+                id: `backup_${entryStat.mtimeMs}`,
+                containerName: containerNameForBackup,
+                fileName: entry,
+                filePath: entryPath,
+                size: entryStat.size,
+                createdAt: entryStat.mtime.toISOString(),
+                status: 'completed',
+              });
+            } else if (entryStat.isDirectory()) {
+              // Timestamped subdirectory - look for .bak files inside
+              const subFiles = await safeReadDir(entryPath);
+
+              for (const subFile of subFiles) {
+                if (subFile.endsWith('.bak')) {
+                  const bakPath = path.join(entryPath, subFile);
+                  const bakStat = await fs.stat(bakPath);
+
+                  // Try to read manifest.json for metadata
+                  let createdAt = bakStat.mtime.toISOString();
+                  try {
+                    const manifestPath = path.join(entryPath, 'manifest.json');
+                    const manifestData = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+                    if (manifestData.CompletedAt) {
+                      createdAt = manifestData.CompletedAt;
+                    }
+                  } catch {
+                    // No manifest, use file mtime
+                  }
+
+                  backups.push({
+                    id: `backup_${bakStat.mtimeMs}`,
+                    containerName: containerNameForBackup,
+                    fileName: subFile,
+                    filePath: bakPath,
+                    backupFolder: entryPath,
+                    size: bakStat.size,
+                    createdAt,
+                    status: 'completed',
+                  });
+                }
+              }
+            }
+          } catch {
+            // Skip entries that can't be accessed
+          }
+        }
+      }
+
       if (containerName) {
         // List backups for specific container
         const containerBackupDir = path.join(backupRoot, containerName);
-        const files = await safeReadDir(containerBackupDir);
-
-        for (const file of files) {
-          if (file.endsWith('.bak')) {
-            const filePath = path.join(containerBackupDir, file);
-            const stats = await fs.stat(filePath);
-            backups.push({
-              id: `backup_${stats.mtimeMs}`,
-              containerName,
-              fileName: file,
-              filePath,
-              size: stats.size,
-              createdAt: stats.mtime.toISOString(),
-              status: 'completed',
-            });
-          }
-        }
+        await findBackupsInDir(containerBackupDir, containerName);
       } else {
         // List all backups
         const containers = await safeReadDir(backupRoot);
 
         for (const container of containers) {
           const containerBackupDir = path.join(backupRoot, container);
-          const stat = await fs.stat(containerBackupDir);
 
-          if (stat.isDirectory()) {
-            const files = await safeReadDir(containerBackupDir);
-
-            for (const file of files) {
-              if (file.endsWith('.bak')) {
-                const filePath = path.join(containerBackupDir, file);
-                const fileStats = await fs.stat(filePath);
-                backups.push({
-                  id: `backup_${fileStats.mtimeMs}`,
-                  containerName: container,
-                  fileName: file,
-                  filePath,
-                  size: fileStats.size,
-                  createdAt: fileStats.mtime.toISOString(),
-                  status: 'completed',
-                });
-              }
+          try {
+            const stat = await fs.stat(containerBackupDir);
+            if (stat.isDirectory()) {
+              await findBackupsInDir(containerBackupDir, container);
             }
+          } catch {
+            // Skip inaccessible directories
           }
         }
       }
