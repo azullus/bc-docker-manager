@@ -64,7 +64,6 @@ param(
     [string]$Version,
 
     [Parameter(Mandatory=$true)]
-    [ValidatePattern('^bcserver-')]
     [string]$ContainerName,
 
     [Parameter(Mandatory=$false)]
@@ -385,7 +384,7 @@ function Wait-ContainerHealthy {
     $startTime = Get-Date
     $timeout = New-TimeSpan -Minutes $TimeoutMinutes
     $unhealthyCount = 0
-    $maxUnhealthyChecks = 6  # Allow 30 seconds of unhealthy before giving up
+    $maxUnhealthyChecks = 60  # Allow 5 minutes of unhealthy (BC Service Tier can take several minutes to start)
 
     while ((Get-Date) - $startTime -lt $timeout) {
         $status = docker inspect --format '{{.State.Health.Status}}' $ContainerName 2>$null
