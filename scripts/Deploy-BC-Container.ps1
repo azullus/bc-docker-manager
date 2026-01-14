@@ -350,23 +350,12 @@ function New-BCContainerDirect {
 
     # Add password for NavUserPassword auth
     if ($Auth -eq 'NavUserPassword' -and $Password) {
-        # Generate AES key (32 bytes for AES-256)
-        $aesKeyPath = Join-Path $myPath "aes.key"
-        $aesKey = New-Object Byte[] 32
-        [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($aesKey)
+        # Write password to file (simpler than securePassword mechanism)
+        $passwordFilePath = Join-Path $myPath "password.txt"
+        [System.IO.File]::WriteAllText($passwordFilePath, $Password)
 
-        # Write AES key as comma-separated text (required by container)
-        # The BC container reads this file and parses bytes from comma-separated values
-        $aesKeyText = ($aesKey -join ',')
-        [System.IO.File]::WriteAllText($aesKeyPath, $aesKeyText)
-
-        # Encrypt password with AES key
-        $securePassword = ConvertTo-SecureString $Password -AsPlainText -Force
-        $encryptedWithKey = ConvertFrom-SecureString $securePassword -Key $aesKey
-
-        $dockerArgs += "--env", "securePassword=$encryptedWithKey"
-        $dockerArgs += "--env", "passwordKeyFile=c:\run\my\aes.key"
-        $dockerArgs += "--env", "removePasswordKeyFile=Y"
+        $dockerArgs += "--env", "passwordFile=c:\run\my\password.txt"
+        $dockerArgs += "--env", "removePasswordFile=Y"
     }
 
     # Add the image
@@ -395,20 +384,32 @@ function Wait-ContainerHealthy {
 
     $startTime = Get-Date
     $timeout = New-TimeSpan -Minutes $TimeoutMinutes
+    $unhealthyCount = 0
+    $maxUnhealthyChecks = 6  # Allow 30 seconds of unhealthy before giving up
 
     while ((Get-Date) - $startTime -lt $timeout) {
         $status = docker inspect --format '{{.State.Health.Status}}' $ContainerName 2>$null
 
         if ($status -eq 'healthy') {
+            Write-Host ""
             Write-Log "Container is healthy!" -Level SUCCESS
             return $true
         }
         elseif ($status -eq 'unhealthy') {
-            Write-Log "Container became unhealthy" -Level ERROR
-            # Get logs for debugging
-            $logs = docker logs --tail 50 $ContainerName 2>&1
-            Write-Log "Last 50 log lines:`n$logs" -Level ERROR
-            return $false
+            $unhealthyCount++
+            # Only fail after sustained unhealthy status (BC containers can recover)
+            if ($unhealthyCount -ge $maxUnhealthyChecks) {
+                Write-Host ""
+                Write-Log "Container remained unhealthy after multiple checks" -Level ERROR
+                # Get logs for debugging
+                $logs = docker logs --tail 50 $ContainerName 2>&1
+                Write-Log "Last 50 log lines:`n$logs" -Level ERROR
+                return $false
+            }
+        }
+        else {
+            # Reset counter if status changes back to starting/none
+            $unhealthyCount = 0
         }
 
         # Show progress
@@ -601,7 +602,8 @@ try {
         -Country $Country
 
     # Step 6: Wait for container to be healthy
-    $healthy = Wait-ContainerHealthy -ContainerName $ContainerName -TimeoutMinutes 15
+    # Increased to 20 minutes for first-time deployments (artifact download + database setup)
+    $healthy = Wait-ContainerHealthy -ContainerName $ContainerName -TimeoutMinutes 20
 
     if (-not $healthy) {
         throw "Container failed to become healthy within timeout period"

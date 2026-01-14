@@ -126,8 +126,9 @@ export default function CreateContainerPage() {
     startDeployment(formData.containerName, formData.version);
 
     try {
-      // Build PowerShell command
-      // Uses Deploy-BC-Container.ps1 (docker-direct) to bypass HNS issues on Windows 11 24H2
+      // Build PowerShell command for deployment
+      // Uses Deploy-BC-Container.ps1 (Docker-direct approach) which works on Windows 11 24H2
+      // Install-BC-Helper.ps1 with New-BcContainer fails with HNS 0x803b0013 errors
       const scriptPath = 'scripts/Deploy-BC-Container.ps1';
       const args: string[] = [
         '-Version', formData.version,

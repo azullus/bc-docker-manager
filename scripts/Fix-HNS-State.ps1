@@ -9,7 +9,7 @@
     It will:
     1. Stop Docker and HNS services
     2. Remove ALL orphaned HNS endpoints
-    3. Clear ALL NAT static mappings in BC port range (8000-9999)
+    3. Clear ALL NAT static mappings in BC port range (6000-9999)
     4. Restart services with clean state
     5. Verify cleanup success
 
@@ -125,14 +125,14 @@ try {
     }
 
     # Step 4: Clean NAT static mappings (while services are stopped)
-    if ($PSCmdlet.ShouldProcess("NAT static mappings", "Remove all in BC port range 8000-9999")) {
-        Write-StatusMessage "Cleaning NAT static mappings in BC port range (8000-9999)..."
+    if ($PSCmdlet.ShouldProcess("NAT static mappings", "Remove all in BC port range 6000-9999")) {
+        Write-StatusMessage "Cleaning NAT static mappings in BC port range (6000-9999)..."
 
         $natMappings = Get-NetNatStaticMapping -ErrorAction SilentlyContinue
         if ($natMappings) {
             $bcMappings = $natMappings | Where-Object {
-                ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
-                ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
+                ($_.ExternalPort -ge 6000 -and $_.ExternalPort -le 9999) -or
+                ($_.InternalPort -ge 6000 -and $_.InternalPort -le 9999)
             }
 
             if ($bcMappings) {
@@ -250,8 +250,8 @@ try {
     $natMappings = Get-NetNatStaticMapping -ErrorAction SilentlyContinue
     if ($natMappings) {
         $remainingBcMappings = $natMappings | Where-Object {
-            ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
-            ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
+            ($_.ExternalPort -ge 6000 -and $_.ExternalPort -le 9999) -or
+            ($_.InternalPort -ge 6000 -and $_.InternalPort -le 9999)
         }
         if ($remainingBcMappings) {
             Write-StatusMessage "WARNING: $($remainingBcMappings.Count) NAT mappings still remain in BC port range" -Level Warning

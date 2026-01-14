@@ -67,6 +67,40 @@ npm run dev
 
 ---
 
+## 📸 Screenshots
+
+### Dashboard
+The main dashboard displays all Business Central containers with real-time status monitoring. View total containers, running/stopped counts, and backup statistics at a glance.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Docker Setup
+Prerequisites checker validates your environment before container deployment. Monitors Docker Engine status, BcContainerHelper module, Hyper-V, WSL 2, and system memory requirements.
+
+![Docker Setup](docs/screenshots/docker-setup.png)
+
+### Create Container
+One-click container deployment with version selection. Choose from the latest stable release, preview versions, or specific BC versions (BC 13 through BC 27). Enable scheduled backups directly from the deployment wizard.
+
+![Create Container](docs/screenshots/create-container.png)
+
+### Backups
+Centralized backup management interface. Track total backups, storage usage, and view the most recent backup date. Create, restore, and manage backup retention policies.
+
+![Backups](docs/screenshots/backups.png)
+
+### AI Troubleshooting
+Claude-powered troubleshooting assistant for Business Central container issues. Quick action buttons for common problems: startup failures, performance issues, license problems, and extension errors. Context-aware suggestions based on your container configuration.
+
+![AI Troubleshooting](docs/screenshots/troubleshoot.png)
+
+### Settings
+Configure your BC Container Manager preferences. Set your Anthropic API key for AI features, specify backup directory location, and adjust dashboard refresh intervals. Includes Docker diagnostics tools.
+
+![Settings](docs/screenshots/settings.png)
+
+---
+
 ## 🏗️ Architecture
 
 ### Electron Desktop App
@@ -192,6 +226,15 @@ bc-docker-manager/
 │
 ├── scripts/
 │   └── Install-BC-Helper.ps1 # Bundled deployment script
+│
+├── docs/
+│   └── screenshots/         # Application screenshots
+│       ├── dashboard.png
+│       ├── docker-setup.png
+│       ├── create-container.png
+│       ├── backups.png
+│       ├── troubleshoot.png
+│       └── settings.png
 │
 ├── electron-builder.yml     # Electron build configuration
 ├── package.json             # Dependencies and scripts

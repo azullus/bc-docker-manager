@@ -110,12 +110,12 @@ if (Get-Command Get-HnsEndpoint -ErrorAction SilentlyContinue) {
 }
 
 # Check 5: NAT Static Mappings
-Write-Host "`n[5] NAT Static Mappings (Port 8000-9999)" -ForegroundColor Yellow
+Write-Host "`n[5] NAT Static Mappings (Port 6000-9999)" -ForegroundColor Yellow
 $natMappings = Get-NetNatStaticMapping -ErrorAction SilentlyContinue
 if ($natMappings) {
     $bcMappings = $natMappings | Where-Object {
-        ($_.ExternalPort -ge 8000 -and $_.ExternalPort -le 9999) -or
-        ($_.InternalPort -ge 8000 -and $_.InternalPort -le 9999)
+        ($_.ExternalPort -ge 6000 -and $_.ExternalPort -le 9999) -or
+        ($_.InternalPort -ge 6000 -and $_.InternalPort -le 9999)
     }
     if ($bcMappings) {
         Write-Host "   BC port mappings: $($bcMappings.Count)" -ForegroundColor Yellow
@@ -143,28 +143,28 @@ if ($LASTEXITCODE -eq 0) {
             $start = [int]$Matches[1]
             $end = [int]$Matches[2]
 
-            # Check if BC port range (8000-9999) overlaps with excluded range
-            if (($start -ge 8000 -and $start -le 9999) -or ($end -ge 8000 -and $end -le 9999) -or ($start -lt 8000 -and $end -gt 9999)) {
+            # Check if BC port range (6000-9999) overlaps with excluded range
+            if (($start -ge 6000 -and $start -le 9999) -or ($end -ge 6000 -and $end -le 9999) -or ($start -lt 6000 -and $end -gt 9999)) {
                 $bcPortsExcluded += "$start-$end"
             }
         }
     }
 
     if ($bcPortsExcluded) {
-        Write-Host "   Excluded ranges overlapping BC ports (8000-9999): $($bcPortsExcluded.Count)" -ForegroundColor Red
+        Write-Host "   Excluded ranges overlapping BC ports (6000-9999): $($bcPortsExcluded.Count)" -ForegroundColor Red
         foreach ($range in $bcPortsExcluded) {
             Write-Host "      - $range" -ForegroundColor Red
         }
     } else {
-        Write-Host "   No excluded port ranges in BC port range (8000-9999)" -ForegroundColor Green
+        Write-Host "   No excluded port ranges in BC port range (6000-9999)" -ForegroundColor Green
     }
 } else {
     Write-Host "   Could not retrieve excluded port ranges" -ForegroundColor Red
 }
 
 # Check 7: Listening ports in BC range
-Write-Host "`n[7] Active TCP Listeners (Port 8000-9999)" -ForegroundColor Yellow
-$netstatOutput = netstat -ano | Select-String "LISTENING" | Select-String ":8\d{3}\s|:9\d{3}\s"
+Write-Host "`n[7] Active TCP Listeners (Port 6000-9999)" -ForegroundColor Yellow
+$netstatOutput = netstat -ano | Select-String "LISTENING" | Select-String ":6\d{3}\s|:7\d{3}\s|:8\d{3}\s|:9\d{3}\s"
 if ($netstatOutput) {
     Write-Host "   Active BC port listeners: $($netstatOutput.Count)" -ForegroundColor Yellow
     foreach ($line in $netstatOutput | Select-Object -First 10) {
@@ -205,7 +205,7 @@ if ($bcMappings -and $bcMappings.Count -gt 0) {
 }
 
 if ($bcPortsExcluded) {
-    $issues += "Windows has excluded port ranges in BC port range (8000-9999) - consider using different ports"
+    $issues += "Windows has excluded port ranges in BC port range (6000-9999) - consider using different ports"
 }
 
 if ($issues.Count -eq 0) {
