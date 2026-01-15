@@ -39,7 +39,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidatePattern('^bcserver-')]
+    [ValidatePattern('bc')]  # Container name must contain 'bc'
     [string]$ContainerName,
 
     [Parameter(Mandatory=$false)]
