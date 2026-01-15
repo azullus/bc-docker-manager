@@ -70,34 +70,38 @@ npm run dev
 ## 📸 Screenshots
 
 ### Dashboard
-The main dashboard displays all Business Central containers with real-time status monitoring. View total containers, running/stopped counts, and backup statistics at a glance.
+The main dashboard displays all Business Central containers with real-time status monitoring. View total containers, running/stopped counts, and backup statistics at a glance. Quick actions for Stop, Restart, Open BC, and container Details.
 
-![Dashboard](docs/screenshots/dashboard.png)
+![Dashboard](screenshots/dashboard.png)
 
 ### Docker Setup
-Prerequisites checker validates your environment before container deployment. Monitors Docker Engine status, BcContainerHelper module, Hyper-V, WSL 2, and system memory requirements.
+Prerequisites checker validates your environment before container deployment. Monitors Docker Engine status, BcContainerHelper module, Hyper-V, WSL 2, and system memory requirements. Quick links to documentation resources.
 
-![Docker Setup](docs/screenshots/docker-setup.png)
+![Docker Setup](screenshots/docker-setup.png)
 
 ### Create Container
-One-click container deployment with version selection. Choose from the latest stable release, preview versions, or specific BC versions (BC 13 through BC 27). Enable scheduled backups directly from the deployment wizard.
+One-click container deployment with version selection. Configure container name, authentication mode, and options like Test Toolkit and scheduled backups. Real-time deployment output panel shows progress.
 
-![Create Container](docs/screenshots/create-container.png)
+![Create Container](screenshots/create-container.png)
+
+Choose from the latest stable release, preview versions, or specific BC versions (BC 13 through BC 27).
+
+![Version Selection](screenshots/create-container-versions.png)
 
 ### Backups
-Centralized backup management interface. Track total backups, storage usage, and view the most recent backup date. Create, restore, and manage backup retention policies.
+Centralized backup management interface. Track total backups, storage usage, and view the most recent backup date. Create new backups with one click, restore from any backup, and delete old backups. Backups grouped by container.
 
-![Backups](docs/screenshots/backups.png)
+![Backups](screenshots/backups.png)
 
 ### AI Troubleshooting
 Claude-powered troubleshooting assistant for Business Central container issues. Quick action buttons for common problems: startup failures, performance issues, license problems, and extension errors. Context-aware suggestions based on your container configuration.
 
-![AI Troubleshooting](docs/screenshots/troubleshoot.png)
+![AI Troubleshooting](screenshots/troubleshoot.png)
 
 ### Settings
-Configure your BC Container Manager preferences. Set your Anthropic API key for AI features, specify backup directory location, and adjust dashboard refresh intervals. Includes Docker diagnostics tools.
+Configure your BC Container Manager preferences. Set your Anthropic API key for AI features, specify backup directory location, and adjust dashboard refresh intervals. Includes Docker diagnostics tools and app version info.
 
-![Settings](docs/screenshots/settings.png)
+![Settings](screenshots/settings.png)
 
 ---
 
@@ -225,16 +229,19 @@ bc-docker-manager/
 │   └── deployment-context.tsx # Deployment state management
 │
 ├── scripts/
-│   └── Install-BC-Helper.ps1 # Bundled deployment script
+│   ├── Install-BC-Helper.ps1    # BcContainerHelper deployment
+│   ├── Deploy-BC-Container.ps1  # Direct Docker deployment (Windows 11 24H2)
+│   ├── Backup-BC-Container.ps1  # Backup operations
+│   └── Restore-BC-Container.ps1 # Restore operations
 │
-├── docs/
-│   └── screenshots/         # Application screenshots
-│       ├── dashboard.png
-│       ├── docker-setup.png
-│       ├── create-container.png
-│       ├── backups.png
-│       ├── troubleshoot.png
-│       └── settings.png
+├── screenshots/             # Application screenshots
+│   ├── dashboard.png
+│   ├── docker-setup.png
+│   ├── create-container.png
+│   ├── create-container-versions.png
+│   ├── backups.png
+│   ├── troubleshoot.png
+│   └── settings.png
 │
 ├── electron-builder.yml     # Electron build configuration
 ├── package.json             # Dependencies and scripts
@@ -358,18 +365,18 @@ dist/
 
 ## 🐳 Container Naming Convention
 
-The app filters for containers matching: `^bcserver`
+The app filters for containers with names containing `bc` (case-insensitive).
 
 **Compatible naming:**
+- `mybc-test`
 - `bcserver-dev`
-- `bcserver-production`
-- `bcserver-latest-v23`
-- `bcserver-sandbox`
+- `bc-production`
+- `sandbox-bc25`
 
 **Create with BcContainerHelper:**
 ```powershell
-New-BcContainer -containerName "bcserver-dev" `
-    -artifactUrl (Get-BcArtifactUrl -type Sandbox -version "23.0") `
+New-BcContainer -containerName "mybc-dev" `
+    -artifactUrl (Get-BcArtifactUrl -type Sandbox -version "25.0") `
     -accept_eula
 ```
 
@@ -504,10 +511,10 @@ Fallback API routes for non-Electron usage:
 **Solutions**:
 
 1. **Filter Pattern Mismatch**
-   - App filters for containers starting with `bcserver-`
-   - **Fix**: Rename containers to match pattern:
+   - App filters for containers with names containing `bc`
+   - **Fix**: Rename containers to include "bc" in the name:
    ```powershell
-   docker rename old-name bcserver-new-name
+   docker rename old-name mybc-container
    ```
 
 2. **Container Status Polling Failed**
