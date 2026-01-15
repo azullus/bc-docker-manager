@@ -565,12 +565,15 @@ function registerIpcHandlers(ipcMain) {
       const { spawn } = require('child_process');
 
       // Resolve script path based on dev/prod environment
-      const isDev = !require('electron').app.isPackaged;
+      // Scripts are unpacked from asar to app.asar.unpacked/scripts/
+      const { app } = require('electron');
+      const isDev = !app.isPackaged;
       let scriptPath;
       if (isDev) {
         scriptPath = path.join(__dirname, '..', 'scripts', 'Backup-BC-Container.ps1');
       } else {
-        scriptPath = path.join(process.resourcesPath, 'scripts', 'Backup-BC-Container.ps1');
+        // In production, scripts are unpacked to app.asar.unpacked/scripts/
+        scriptPath = path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'scripts', 'Backup-BC-Container.ps1');
       }
 
       // Check if script exists

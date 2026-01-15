@@ -18,6 +18,7 @@ files:
   - electron/**/*
   - out/**/*
   - assets/**/*
+  - scripts/**/*
   - package.json
 
 # Extra resources (not bundled, just copied)
@@ -61,3 +62,4 @@ asar: true
 asarUnpack:
   - node_modules/dockerode/**/*
   - node_modules/@anthropic-ai/**/*
+  - scripts/**/*

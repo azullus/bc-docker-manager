@@ -164,12 +164,14 @@ function setupIpcHandlers() {
       }
 
       // Resolve script path based on dev/prod environment
+      // Scripts are unpacked from asar to app.asar.unpacked/scripts/
       let scriptPath;
       if (isDev) {
         scriptPath = path.join(__dirname, '..', script);
       } else {
-        // In production, scripts are in extraResources
-        scriptPath = path.join(process.resourcesPath, script);
+        // In production, scripts are unpacked from asar
+        const appPath = app.getAppPath();
+        scriptPath = path.join(appPath.replace('app.asar', 'app.asar.unpacked'), script);
       }
 
       // Mask sensitive args in debug output
