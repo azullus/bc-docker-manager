@@ -27,6 +27,7 @@ interface ElectronAPI {
     list: (containerName?: string) => Promise<ApiResponse<BackupInfo[]>>;
     create: (containerId: string) => Promise<ApiResponse<BackupInfo>>;
     delete: (filePath: string) => Promise<ApiResponse<void>>;
+    restore: (backupPath: string, containerName: string) => Promise<ApiResponse<void>>;
     getPath: () => Promise<ApiResponse<string>>;
   };
   ai: {

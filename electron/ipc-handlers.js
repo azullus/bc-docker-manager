@@ -672,6 +672,92 @@ function registerIpcHandlers(ipcMain) {
     return { success: true, data: settings.backupRoot || DEFAULT_BACKUP_ROOT };
   });
 
+  ipcMain.handle('backups:restore', async (event, backupPath, containerName) => {
+    try {
+      // Validate container name
+      if (!containerName || typeof containerName !== 'string') {
+        return { success: false, error: 'Container name is required' };
+      }
+
+      // Validate backup path
+      if (!backupPath || typeof backupPath !== 'string') {
+        return { success: false, error: 'Backup path is required' };
+      }
+
+      const settings = await loadSettings();
+      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
+
+      // Security: Validate backup path is within backup root
+      const pathValidation = validateFilePath(backupPath, backupRoot);
+      if (!pathValidation.valid) {
+        return { success: false, error: pathValidation.error || 'Invalid backup path' };
+      }
+
+      // Verify backup path exists
+      try {
+        await fs.access(backupPath);
+      } catch {
+        return { success: false, error: 'Backup path not found' };
+      }
+
+      const { spawn } = require('child_process');
+
+      // Resolve script path based on dev/prod environment
+      const { app } = require('electron');
+      const isDev = !app.isPackaged;
+      let scriptPath;
+      if (isDev) {
+        scriptPath = path.join(__dirname, '..', 'scripts', 'Restore-BC-Container.ps1');
+      } else {
+        scriptPath = path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'scripts', 'Restore-BC-Container.ps1');
+      }
+
+      // Check if script exists
+      if (!fsSync.existsSync(scriptPath)) {
+        return { success: false, error: `Restore script not found at: ${scriptPath}` };
+      }
+
+      return new Promise((resolve) => {
+        const ps = spawn('powershell.exe', [
+          '-NoProfile',
+          '-ExecutionPolicy', 'Bypass',
+          '-File', scriptPath,
+          '-ContainerName', containerName,
+          '-BackupPath', backupPath,
+          '-Force'  // Skip confirmation since UI handles it
+        ]);
+
+        let stdout = '';
+        let stderr = '';
+
+        ps.stdout.on('data', (data) => {
+          stdout += data.toString();
+        });
+
+        ps.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+
+        ps.on('close', (code) => {
+          if (code === 0) {
+            resolve({ success: true, message: 'Restore completed successfully' });
+          } else {
+            resolve({
+              success: false,
+              error: `Restore failed (exit code ${code}): ${stderr || stdout}`
+            });
+          }
+        });
+
+        ps.on('error', (err) => {
+          resolve({ success: false, error: `Failed to start restore: ${err.message}` });
+        });
+      });
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error) };
+    }
+  });
+
   // ============================================
   // AI Handlers
   // ============================================

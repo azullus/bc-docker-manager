@@ -12,12 +12,15 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  RotateCcw,
+  Loader2,
 } from 'lucide-react';
 import { BackupInfo, BCContainer } from '@/lib/types';
 import {
   listBackups,
   createBackup,
   deleteBackup,
+  restoreBackup,
   listContainers,
 } from '@/lib/electron-api';
 
@@ -28,6 +31,7 @@ export default function BackupsPage() {
   const [error, setError] = useState<string | null>(null);
   const [creatingBackup, setCreatingBackup] = useState<string | null>(null);
   const [deletingBackup, setDeletingBackup] = useState<string | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
 
   const fetchBackups = useCallback(async () => {
     try {
@@ -82,6 +86,24 @@ export default function BackupsPage() {
       setDeletingBackup(null);
     }
   }, [fetchBackups]);
+
+  const handleRestoreBackup = useCallback(async (backup: BackupInfo) => {
+    if (!confirm(`Restore container "${backup.containerName}" from backup "${backup.fileName}"?\n\nThis will replace the current database. The container will be restarted.`)) {
+      return;
+    }
+
+    setRestoringBackup(backup.id);
+    try {
+      // Use backupFolder if available (timestamped directory), otherwise use filePath
+      const backupPath = backup.backupFolder || backup.filePath;
+      await restoreBackup(backupPath, backup.containerName);
+      toast.success('Container restored successfully!');
+    } catch (err) {
+      toast.error(`Restore failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setRestoringBackup(null);
+    }
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -288,18 +310,32 @@ export default function BackupsPage() {
                   <span className="text-sm text-gray-500">{formatDate(backup.createdAt)}</span>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteBackup(backup)}
-                  disabled={deletingBackup === backup.id}
-                  className="btn btn-ghost text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2"
-                  title="Delete backup"
-                >
-                  {deletingBackup === backup.id ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleRestoreBackup(backup)}
+                    disabled={restoringBackup !== null || deletingBackup !== null || creatingBackup !== null}
+                    className="btn btn-ghost text-green-400 hover:text-green-300 hover:bg-green-500/10 p-2"
+                    title="Restore from this backup"
+                  >
+                    {restoringBackup === backup.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteBackup(backup)}
+                    disabled={deletingBackup === backup.id || restoringBackup !== null}
+                    className="btn btn-ghost text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2"
+                    title="Delete backup"
+                  >
+                    {deletingBackup === backup.id ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

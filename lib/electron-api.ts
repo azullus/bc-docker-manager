@@ -34,6 +34,7 @@ interface ElectronAPI {
     list: (containerName?: string) => Promise<ApiResponse<BackupInfo[]>>;
     create: (containerId: string) => Promise<ApiResponse<BackupInfo>>;
     delete: (filePath: string) => Promise<ApiResponse<void>>;
+    restore: (backupPath: string, containerName: string) => Promise<ApiResponse<void>>;
     getPath: () => Promise<ApiResponse<string>>;
   };
   ai: {
@@ -339,6 +340,19 @@ export async function deleteBackup(filePath: string): Promise<void> {
   });
   const data = await handleFetchResponse<void>(response, 'Delete backup');
   if (!data.success) throw new Error(data.error || 'Failed to delete backup');
+}
+
+export async function restoreBackup(backupPath: string, containerName: string): Promise<void> {
+  const electron = getElectronAPI();
+
+  if (electron) {
+    const result = await electron.backups.restore(backupPath, containerName);
+    if (!result.success) throw new Error(result.error || 'Failed to restore backup');
+    return;
+  }
+
+  // Web mode: restore not supported
+  throw new Error('Restore requires the desktop app');
 }
 
 // ============================================

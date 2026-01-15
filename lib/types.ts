@@ -44,6 +44,7 @@ export interface BackupInfo {
   containerName: string;
   fileName: string;
   filePath: string;
+  backupFolder?: string; // Timestamped directory containing backup files
   size: number;
   createdAt: string;
   status: 'completed' | 'in_progress' | 'failed';
