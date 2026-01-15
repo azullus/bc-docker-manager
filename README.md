@@ -207,7 +207,9 @@ bc-docker-manager/
 │
 ├── app/                     # Next.js App Router
 │   ├── dashboard/page.tsx   # Container list view
+│   ├── setup/page.tsx       # Docker prerequisites checker
 │   ├── create/page.tsx      # Container creation wizard
+│   ├── container/page.tsx   # Container details view
 │   ├── backups/page.tsx     # Backup management
 │   ├── troubleshoot/page.tsx # AI chat interface
 │   ├── settings/page.tsx    # App configuration
@@ -218,6 +220,9 @@ bc-docker-manager/
 │   ├── LogViewer.tsx        # Real-time log viewer
 │   ├── AIChat.tsx           # AI chat interface
 │   ├── DeploymentModal.tsx  # Container creation dialog
+│   ├── HNSErrorRecovery.tsx # HNS error recovery UI
+│   ├── NetworkDiagnostics.tsx # Network health diagnostics
+│   ├── ErrorBoundary.tsx    # React error boundary
 │   ├── Sidebar.tsx          # Navigation menu
 │   └── Providers.tsx        # React context providers
 │
@@ -225,12 +230,15 @@ bc-docker-manager/
 │   ├── electron-api.ts      # Unified API layer
 │   ├── docker-api.ts        # Docker Engine API (web mode)
 │   ├── ai-client.ts         # Claude API integration
+│   ├── hns-error-detector.ts # HNS error pattern detection
 │   ├── types.ts             # TypeScript interfaces
 │   └── deployment-context.tsx # Deployment state management
 │
 ├── scripts/
-│   ├── Install-BC-Helper.ps1    # BcContainerHelper deployment
-│   ├── Deploy-BC-Container.ps1  # Direct Docker deployment (Windows 11 24H2)
+│   ├── Deploy-BC-Container.ps1  # Direct Docker deployment (primary)
+│   ├── Install-BC-Helper.ps1    # BcContainerHelper deployment (legacy)
+│   ├── Fix-HNS-State.ps1        # HNS cleanup script
+│   ├── Diagnose-HNS-Ports.ps1   # Network diagnostics
 │   ├── Backup-BC-Container.ps1  # Backup operations
 │   └── Restore-BC-Container.ps1 # Restore operations
 │

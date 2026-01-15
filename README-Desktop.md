@@ -83,10 +83,23 @@ BC-Docker-Manager/
 │   ├── preload.js        # Secure IPC bridge
 │   └── ipc-handlers.js   # Docker/backup/AI operations
 ├── app/                  # Next.js pages
+│   ├── dashboard/        # Container list
+│   ├── setup/            # Docker prerequisites
+│   ├── create/           # Container wizard
+│   ├── backups/          # Backup management
+│   ├── troubleshoot/     # AI chat
+│   └── settings/         # Configuration
+├── components/
+│   ├── HNSErrorRecovery.tsx    # HNS error recovery UI
+│   └── NetworkDiagnostics.tsx  # Network health panel
 ├── lib/
-│   └── electron-api.ts   # Unified API (works in web & Electron)
+│   ├── electron-api.ts   # Unified API (works in web & Electron)
+│   └── hns-error-detector.ts   # HNS error pattern detection
 ├── scripts/
-│   └── Install-BC-Helper.ps1  # Container deployment script
+│   ├── Deploy-BC-Container.ps1  # Primary deployment (direct Docker)
+│   ├── Install-BC-Helper.ps1    # Legacy deployment (BcContainerHelper)
+│   ├── Fix-HNS-State.ps1        # HNS cleanup
+│   └── Diagnose-HNS-Ports.ps1   # Network diagnostics
 └── assets/               # App icons
 ```
 
@@ -105,8 +118,27 @@ BC-Docker-Manager/
 - Check that Docker is using Windows containers (or WSL2)
 
 ### "PowerShell script not found"
-- Verify `scripts/Install-BC-Helper.ps1` exists
+- Verify scripts exist in `scripts/` directory
 - Check execution policy: `Set-ExecutionPolicy -Scope CurrentUser Bypass`
+
+### HNS Port Conflict (0x803b0013)
+This is common on Windows 11 24H2. The app will auto-detect and show recovery options.
+
+**Manual Fix:**
+```powershell
+# Run as Administrator
+.\scripts\Diagnose-HNS-Ports.ps1   # Identify orphaned resources
+.\scripts\Fix-HNS-State.ps1 -Force # Clean HNS state
+```
+
+### Container Deployment Fails
+The app uses `Deploy-BC-Container.ps1` by default which bypasses BcContainerHelper HNS issues.
+
+If deployment still fails:
+1. Click "Show Network Diagnostics" in the Create Container page
+2. Run diagnostics to identify conflicts
+3. Use "Clean HNS State" to clear orphaned resources
+4. Retry deployment
 
 ### Build fails
 - Delete `node_modules` and `package-lock.json`, then `npm install`

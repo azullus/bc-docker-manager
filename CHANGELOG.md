@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-01-14
+
+### Added
+- **HNS Error Detection & Recovery System**
+  - `lib/hns-error-detector.ts` - Automatic detection of HNS-specific errors
+  - `components/HNSErrorRecovery.tsx` - Recovery UI with guided actions
+  - `components/NetworkDiagnostics.tsx` - Proactive network health checking
+- **New PowerShell Scripts**
+  - `Deploy-BC-Container.ps1` - Direct Docker deployment (bypasses BcContainerHelper HNS issues)
+  - `Fix-HNS-State.ps1` - Aggressive HNS cleanup script
+  - `Diagnose-HNS-Ports.ps1` - Non-destructive network diagnostics
+- Docker Setup page (`app/setup/`) - Prerequisites checker
+- Container details page (`app/container/`)
+
+### Changed
+- Create Container page now uses `Deploy-BC-Container.ps1` by default (more reliable on Windows 11 24H2)
+- Deployment wizard shows "Network Diagnostics" button for proactive troubleshooting
+- Enhanced backup/restore scripts with better error handling
+
+### Fixed
+- HNS port conflict errors (0x803b0013) now auto-detected with recovery options
+- Container deployment reliability on Windows 11 24H2
+
+### Screenshots
+- Updated all 7 application screenshots to reflect current UI
+
 ## [1.0.1] - 2025-01-01
 
 ### Added
@@ -46,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Container status monitoring
 - Deployment modal with configuration options
 
-[Unreleased]: https://github.com/azullus/bc-docker-manager/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/azullus/bc-docker-manager/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/azullus/bc-docker-manager/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/azullus/bc-docker-manager/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/azullus/bc-docker-manager/releases/tag/v1.0.0
