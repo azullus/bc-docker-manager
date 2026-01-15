@@ -10,7 +10,7 @@ npmRebuild: false
 
 # Directories
 directories:
-  output: dist6
+  output: dist7
   buildResources: assets
 
 # Files to include in the build

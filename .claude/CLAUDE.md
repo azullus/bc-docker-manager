@@ -151,11 +151,34 @@ BC-Docker-Manager/
 │   ├── docker-api.ts     # Docker operations (web)
 │   └── types.ts          # TypeScript types
 ├── scripts/
-│   └── Install-BC-Helper.ps1  # Bundled deployment script
+│   ├── Install-BC-Helper.ps1   # Primary deployment script (uses BcContainerHelper)
+│   ├── Deploy-BC-Container.ps1 # Alternative deployment (direct Docker, bypasses HNS issues)
+│   ├── Fix-HNS-State.ps1       # HNS cleanup script
+│   ├── Diagnose-HNS-Ports.ps1  # Network diagnostics
+│   ├── Backup-BC-Container.ps1 # Backup operations
+│   └── Restore-BC-Container.ps1 # Restore operations
 ├── assets/               # App icons
 ├── electron-builder.yml  # Build configuration
 └── package.json
 ```
+
+## Deployment Scripts
+
+The app bundles two deployment approaches:
+
+### Deploy-BC-Container.ps1 (Primary - Used by App)
+- Uses direct Docker commands (bypasses BcContainerHelper entirely)
+- **Works reliably on Windows 11 24H2** where BcContainerHelper fails with HNS errors
+- Simpler password handling via `passwordFile` environment variable
+- 20-minute health check timeout for first-time deployments
+- **Used by the app's Create Container wizard**
+
+### Install-BC-Helper.ps1 (Standalone/Manual Use)
+- Uses BcContainerHelper PowerShell module with `New-BcContainer` cmdlet
+- Built-in HNS cleanup and retry logic
+- **Fails on Windows 11 24H2** with persistent HNS 0x803b0013 port conflict errors
+- Kept for standalone use when BcContainerHelper works (older Windows versions)
+- Not used by the app due to HNS issues
 
 ## Related Projects
 
