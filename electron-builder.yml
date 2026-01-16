@@ -3,7 +3,7 @@
 
 appId: com.cosmicbytez.bc-container-manager
 productName: BC Container Manager
-copyright: Copyright © 2024 CosmicBytez
+copyright: Copyright © 2025 CosmicBytez
 
 # Skip native module rebuilding (we don't use SSH features from dockerode)
 npmRebuild: false
@@ -51,7 +51,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: BC Container Manager
-  license: LICENSE.txt
+  license: LICENSE
 
 # Portable executable (no install needed)
 portable:

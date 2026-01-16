@@ -79,5 +79,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
 });
 
-// Log when preload script loads successfully
-console.log('BC Container Manager: Preload script loaded');
+// Log when preload script loads successfully (only in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('BC Container Manager: Preload script loaded');
+}

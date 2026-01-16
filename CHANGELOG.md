@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-01-15
+
+### Security
+- **Critical**: Updated Next.js from 14.2.20 to 14.2.35 (fixes 9 CVEs including DoS, SSRF, cache poisoning)
+- **Moderate**: Updated Electron from 33.4.0 to 35.2.1 (fixes ASAR integrity bypass)
+- **Moderate**: Updated eslint-config-next to 14.2.35
+
+### Changed
+- All debug logging (console.log/console.error) now gated behind development mode
+- Added `devLog()` and `devError()` helpers for consistent development-only logging
+- Updated copyright year to 2025 in electron-builder configuration
+- Fixed LICENSE file reference in NSIS installer configuration
+
+### Fixed
+- Production builds no longer emit debug logs to console
+- Electron preload script logging only active in development mode
+- RAG helper logging properly gated for production
+
 ## [1.1.0] - 2025-01-14
 
 ### Added
@@ -72,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Container status monitoring
 - Deployment modal with configuration options
 
-[Unreleased]: https://github.com/azullus/bc-docker-manager/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/azullus/bc-docker-manager/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/azullus/bc-docker-manager/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/azullus/bc-docker-manager/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/azullus/bc-docker-manager/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/azullus/bc-docker-manager/releases/tag/v1.0.0

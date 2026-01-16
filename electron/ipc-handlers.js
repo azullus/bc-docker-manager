@@ -11,6 +11,30 @@ const fsSync = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const { buildContext, getOfflineResponse, listDocuments } = require('./rag-helper');
+const { app } = require('electron');
+
+// Check if running in development mode
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+/**
+ * Development-only logging helper
+ * Only logs in development mode to keep production clean
+ */
+function devLog(...args) {
+  if (isDev) {
+    console.log(...args);
+  }
+}
+
+/**
+ * Development-only error logging helper
+ * Only logs errors in development mode
+ */
+function devError(...args) {
+  if (isDev) {
+    console.error(...args);
+  }
+}
 
 /**
  * Safely extracts error message from any error type
@@ -117,7 +141,7 @@ function getDockerOptions() {
 
 // Initialize Docker client with best available connection
 const dockerOptions = getDockerOptions();
-console.log('[Docker] Initializing with options:', JSON.stringify(dockerOptions));
+devLog('[Docker] Initializing with options:', JSON.stringify(dockerOptions));
 const docker = new Docker(dockerOptions);
 
 // Settings store (simple file-based)
@@ -222,7 +246,7 @@ function registerIpcHandlers(ipcMain) {
                   statsError: stats.statsWarning,
                 };
               } catch (statsError) {
-                console.error(`[Stats Error] Failed to get stats for ${container.name}:`, getErrorMessage(statsError));
+                devError(`[Stats Error] Failed to get stats for ${container.name}:`, getErrorMessage(statsError));
                 return {
                   ...container,
                   ports,
@@ -238,7 +262,7 @@ function registerIpcHandlers(ipcMain) {
               webClientUrl,
             };
           } catch (inspectError) {
-            console.error(`[Inspect Error] Failed to inspect ${container.name}:`, getErrorMessage(inspectError));
+            devError(`[Inspect Error] Failed to inspect ${container.name}:`, getErrorMessage(inspectError));
             return container; // Return original container data if inspect fails
           }
         })
@@ -982,11 +1006,6 @@ async function getContainerStats(containerId, timeoutMs = 5000) {
 
 function mapContainerToBCContainer(container) {
   const name = container.Names[0]?.replace('/', '') || 'unknown';
-
-  // Debug: Log raw port data to understand the structure
-  if (container.Ports && container.Ports.length > 0) {
-    console.log(`[Ports Debug] Container ${name}:`, JSON.stringify(container.Ports));
-  }
 
   // Filter out ports without public mappings and map properly
   // Docker returns ports with IP, PrivatePort, PublicPort, Type

@@ -7,6 +7,10 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+const { app } = require('electron');
+
+// Check if running in development mode
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 // Path to BC-specific HOWTO documents
 const HOWTO_PATH = path.join(__dirname, '..', '..', '..', "HOWTO's", 'CONTAINERS');
@@ -57,9 +61,13 @@ async function loadDocuments() {
 
     documentCache = documents;
     cacheTimestamp = Date.now();
-    console.log(`RAG: Loaded ${documents.length} BC/Docker documents`);
+    if (isDev) {
+      console.log(`RAG: Loaded ${documents.length} BC/Docker documents`);
+    }
   } catch (err) {
-    console.error('Failed to load HOWTO documents:', err.message);
+    if (isDev) {
+      console.error('Failed to load HOWTO documents:', err.message);
+    }
   }
 
   return documents;

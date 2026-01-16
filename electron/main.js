@@ -103,9 +103,11 @@ function createWindow() {
     mainWindow.loadURL('app://./index.html');
   }
 
-  // Log any load errors
+  // Log any load errors (only in development)
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorCode, errorDescription);
+    if (isDev) {
+      console.error('Failed to load:', errorCode, errorDescription);
+    }
   });
 
   // Show window when ready to prevent visual flash
