@@ -32,6 +32,11 @@ extraResources:
     filter:
       - "icon.png"
       - "icon.ico"
+  # HOWTO documentation for RAG helper (offline AI fallback)
+  - from: "../../AZU-VAULT/HOWTO's/CONTAINERS/"
+    to: HOWTO/CONTAINERS/
+    filter:
+      - "**/*.md"
 
 # Windows configuration
 win:

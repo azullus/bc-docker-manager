@@ -12,8 +12,23 @@ const { app } = require('electron');
 // Check if running in development mode
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+/**
+ * Get the path to BC-specific HOWTO documents
+ * In development: Use relative path from project root
+ * In production: Use bundled resources path (extraResources)
+ */
+function getHowToPath() {
+  if (app.isPackaged) {
+    // In production, HOWTOs are bundled via extraResources
+    return path.join(process.resourcesPath, 'HOWTO', 'CONTAINERS');
+  } else {
+    // In development, use relative path from project root
+    return path.join(__dirname, '..', '..', '..', "HOWTO's", 'CONTAINERS');
+  }
+}
+
 // Path to BC-specific HOWTO documents
-const HOWTO_PATH = path.join(__dirname, '..', '..', '..', "HOWTO's", 'CONTAINERS');
+const HOWTO_PATH = getHowToPath();
 
 // Cache for loaded documents
 let documentCache = null;
