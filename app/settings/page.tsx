@@ -80,8 +80,16 @@ export default function SettingsPage() {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      // Validate backup root is not empty
+      const trimmedBackupRoot = settings.backupRoot.trim();
+      if (!trimmedBackupRoot) {
+        toast.error('Backup directory cannot be empty');
+        setSaving(false);
+        return;
+      }
+
       await setSetting('anthropicApiKey', settings.anthropicApiKey);
-      await setSetting('backupRoot', settings.backupRoot);
+      await setSetting('backupRoot', trimmedBackupRoot);
       await setSetting('autoRefreshInterval', settings.autoRefreshInterval);
 
       toast.success('Settings saved successfully');
@@ -212,8 +220,14 @@ export default function SettingsPage() {
             onChange={(e) =>
               setSettings((prev) => ({ ...prev, backupRoot: e.target.value }))
             }
+            placeholder="C:\BCBackups"
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
           />
+          {!settings.backupRoot.trim() && (
+            <p className="text-sm text-red-400 mt-2">
+              ⚠️ Backup directory cannot be empty
+            </p>
+          )}
         </div>
 
         {/* Auto Refresh */}

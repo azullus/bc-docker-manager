@@ -478,7 +478,8 @@ function registerIpcHandlers(ipcMain) {
   ipcMain.handle('backups:list', async (event, containerName) => {
     try {
       const settings = await loadSettings();
-      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
+      // Use nullish coalescing to only fall back if undefined/null, not empty string
+      const backupRoot = settings.backupRoot ?? DEFAULT_BACKUP_ROOT;
       const backups = [];
 
       // Helper to find backups in a container directory
@@ -582,7 +583,8 @@ function registerIpcHandlers(ipcMain) {
 
       // Get configured backup path
       const settings = await loadSettings();
-      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
+      // Use nullish coalescing to only fall back if undefined/null, not empty string
+      const backupRoot = settings.backupRoot ?? DEFAULT_BACKUP_ROOT;
 
       // Use BcContainerHelper via PowerShell script for proper backup
       // This handles database detection, backup creation, and file management
@@ -663,7 +665,8 @@ function registerIpcHandlers(ipcMain) {
   ipcMain.handle('backups:delete', async (event, filePath) => {
     try {
       const settings = await loadSettings();
-      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
+      // Use nullish coalescing to only fall back if undefined/null, not empty string
+      const backupRoot = settings.backupRoot ?? DEFAULT_BACKUP_ROOT;
 
       // Security check: use path.relative to prevent traversal attacks
       // This catches cases like 'C:\BCBackups..\..\..\Windows\file.bak'
@@ -695,7 +698,8 @@ function registerIpcHandlers(ipcMain) {
 
   ipcMain.handle('backups:get-path', async () => {
     const settings = await loadSettings();
-    return { success: true, data: settings.backupRoot || DEFAULT_BACKUP_ROOT };
+    // Use nullish coalescing to only fall back if undefined/null, not empty string
+    return { success: true, data: settings.backupRoot ?? DEFAULT_BACKUP_ROOT };
   });
 
   ipcMain.handle('backups:restore', async (event, backupPath, containerName) => {
@@ -711,7 +715,8 @@ function registerIpcHandlers(ipcMain) {
       }
 
       const settings = await loadSettings();
-      const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
+      // Use nullish coalescing to only fall back if undefined/null, not empty string
+      const backupRoot = settings.backupRoot ?? DEFAULT_BACKUP_ROOT;
 
       // Security: Validate backup path is within backup root
       const pathValidation = validateFilePath(backupPath, backupRoot);
