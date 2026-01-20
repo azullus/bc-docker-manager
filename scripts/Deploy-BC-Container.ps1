@@ -384,9 +384,12 @@ function Wait-ContainerHealthy {
     $startTime = Get-Date
     $timeout = New-TimeSpan -Minutes $TimeoutMinutes
     $unhealthyCount = 0
-    $maxUnhealthyChecks = 60  # Allow 5 minutes of unhealthy (BC Service Tier can take several minutes to start)
+    $maxUnhealthyChecks = 120  # Allow 10 minutes of unhealthy (BC 27.3 may need more time on LTSC 2025)
+    $lastLogCheck = $startTime
+    $logCheckInterval = 30  # Show diagnostics every 30 seconds
 
     while ((Get-Date) - $startTime -lt $timeout) {
+        $currentTime = Get-Date
         $status = docker inspect --format '{{.State.Health.Status}}' $ContainerName 2>$null
 
         if ($status -eq 'healthy') {
@@ -396,13 +399,52 @@ function Wait-ContainerHealthy {
         }
         elseif ($status -eq 'unhealthy') {
             $unhealthyCount++
-            # Only fail after sustained unhealthy status (BC containers can recover)
+
+            # Show periodic diagnostics during extended unhealthy period
+            if (($currentTime - $lastLogCheck).TotalSeconds -ge $logCheckInterval) {
+                Write-Host ""
+                Write-Log "Container still unhealthy after $([math]::Round(($unhealthyCount * 5) / 60, 1)) minutes - checking logs..." -Level WARN
+
+                # Get last 20 lines of logs for diagnostic context
+                $recentLogs = docker logs --tail 20 $ContainerName 2>&1
+                if ($recentLogs) {
+                    Write-Log "Recent container activity:" -Level INFO
+                    $recentLogs | Select-Object -Last 5 | ForEach-Object { Write-Host "  $_" }
+                }
+
+                # Check if container is still running
+                $containerState = docker inspect --format '{{.State.Status}}' $ContainerName 2>$null
+                if ($containerState -ne 'running') {
+                    Write-Host ""
+                    Write-Log "Container has stopped running (status: $containerState)" -Level ERROR
+                    $logs = docker logs --tail 100 $ContainerName 2>&1
+                    Write-Log "Last 100 log lines:`n$logs" -Level ERROR
+                    return $false
+                }
+
+                $lastLogCheck = $currentTime
+            }
+
+            # Only fail after sustained unhealthy status (BC containers can recover, especially BC 27.3 on LTSC 2025)
             if ($unhealthyCount -ge $maxUnhealthyChecks) {
                 Write-Host ""
-                Write-Log "Container remained unhealthy after multiple checks" -Level ERROR
-                # Get logs for debugging
-                $logs = docker logs --tail 50 $ContainerName 2>&1
-                Write-Log "Last 50 log lines:`n$logs" -Level ERROR
+                Write-Log "Container remained unhealthy after $([math]::Round(($unhealthyCount * 5) / 60, 1)) minutes" -Level ERROR
+
+                # Get comprehensive logs for debugging
+                Write-Log "Gathering diagnostic information..." -Level INFO
+                $logs = docker logs --tail 200 $ContainerName 2>&1
+                Write-Log "Last 200 log lines:`n$logs" -Level ERROR
+
+                # Try to get BC-specific status if possible
+                try {
+                    $navStatus = docker exec $ContainerName powershell -Command "Get-Service | Where-Object { `$_.Name -like '*BC*' -or `$_.Name -like '*NAV*' } | Select-Object Name, Status" 2>$null
+                    if ($navStatus) {
+                        Write-Log "BC Services status:`n$navStatus" -Level INFO
+                    }
+                } catch {
+                    Write-Log "Could not retrieve BC service status" -Level WARN
+                }
+
                 return $false
             }
         }
@@ -413,13 +455,19 @@ function Wait-ContainerHealthy {
 
         # Show progress
         $elapsed = [math]::Round(((Get-Date) - $startTime).TotalSeconds)
-        Write-Host "`r  Status: $status (${elapsed}s elapsed)..." -NoNewline
+        Write-Host "`r  Status: $status (${elapsed}s elapsed, unhealthy checks: $unhealthyCount/$maxUnhealthyChecks)..." -NoNewline
 
         Start-Sleep -Seconds 5
     }
 
     Write-Host ""
-    Write-Log "Timeout waiting for container to become healthy" -Level ERROR
+    Write-Log "Timeout waiting for container to become healthy after $TimeoutMinutes minutes" -Level ERROR
+
+    # Final diagnostic dump
+    Write-Log "Gathering final diagnostic information..." -Level INFO
+    $logs = docker logs --tail 200 $ContainerName 2>&1
+    Write-Log "Last 200 log lines:`n$logs" -Level ERROR
+
     return $false
 }
 
@@ -601,11 +649,21 @@ try {
         -Country $Country
 
     # Step 6: Wait for container to be healthy
-    # Increased to 20 minutes for first-time deployments (artifact download + database setup)
-    $healthy = Wait-ContainerHealthy -ContainerName $ContainerName -TimeoutMinutes 20
+    # Increased to 30 minutes for BC 27.3 on LTSC 2025 (first-time deployments need more time)
+    # BC 27.3 appears to have longer initialization time, especially on LTSC 2025
+    $healthy = Wait-ContainerHealthy -ContainerName $ContainerName -TimeoutMinutes 30
 
     if (-not $healthy) {
-        throw "Container failed to become healthy within timeout period"
+        Write-Log "" -Level ERROR
+        Write-Log "====== TROUBLESHOOTING TIPS ======" -Level WARN
+        Write-Log "1. Check container logs: docker logs $ContainerName" -Level INFO
+        Write-Log "2. Verify container is running: docker ps -a --filter name=$ContainerName" -Level INFO
+        Write-Log "3. Check BC services inside container: docker exec $ContainerName powershell Get-Service" -Level INFO
+        Write-Log "4. Try connecting via browser: http://localhost:$($ports.WebPort)/BC/" -Level INFO
+        Write-Log "5. For BC 27.3 on LTSC 2025, consider trying Hyper-V isolation: -Isolation hyperv" -Level INFO
+        Write-Log "=================================" -Level WARN
+
+        throw "Container failed to become healthy within timeout period. See troubleshooting tips above."
     }
 
     # Step 7: Setup backups if requested
