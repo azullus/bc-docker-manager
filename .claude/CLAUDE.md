@@ -1,6 +1,8 @@
-# CLAUDE.md - BC Docker Manager
+# CLAUDE.md
 
-## Project Overview
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## BC Docker Manager
 
 BC Docker Manager is a **desktop application** (Electron + Next.js) for managing Business Central Docker containers. It provides a native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and **one-click container deployment** via Install-BC-Helper.ps1.
 
