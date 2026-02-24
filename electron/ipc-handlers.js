@@ -327,13 +327,17 @@ function registerIpcHandlers(ipcMain) {
       return { success: false, error: validation.error };
     }
 
+    // Sanitize options: ensure tail and since are valid numbers
+    const tail = Number.isFinite(Number(options.tail)) ? Math.max(1, Math.min(Number(options.tail), 10000)) : 100;
+    const since = Number.isFinite(Number(options.since)) ? Math.max(0, Number(options.since)) : 0;
+
     try {
       const container = docker.getContainer(id);
       const logStream = await container.logs({
         stdout: true,
         stderr: true,
-        tail: options.tail || 100,
-        since: options.since || 0,
+        tail,
+        since,
         timestamps: true,
       });
 
@@ -426,6 +430,14 @@ function registerIpcHandlers(ipcMain) {
 
   // Diagnostic endpoint to debug stats issues
   ipcMain.handle('docker:diagnostics', async (event, containerId) => {
+    // Validate container ID if provided
+    if (containerId) {
+      const validation = validateContainerId(containerId);
+      if (!validation.valid) {
+        return { success: false, error: validation.error };
+      }
+    }
+
     try {
       const diagnostics = {
         platform: process.platform,
@@ -477,6 +489,14 @@ function registerIpcHandlers(ipcMain) {
 
   ipcMain.handle('backups:list', async (event, containerName) => {
     try {
+      // Validate container name if provided to prevent path traversal
+      if (containerName) {
+        const nameValidation = validateContainerId(containerName);
+        if (!nameValidation.valid) {
+          return { success: false, error: 'Invalid container name format' };
+        }
+      }
+
       const settings = await loadSettings();
       const backupRoot = settings.backupRoot || DEFAULT_BACKUP_ROOT;
       const backups = [];
@@ -800,6 +820,24 @@ function registerIpcHandlers(ipcMain) {
 
   ipcMain.handle('ai:chat', async (event, messages, containerContext) => {
     try {
+      // Validate messages array
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return { success: false, error: 'Messages must be a non-empty array' };
+      }
+      // Validate each message has role and content strings
+      for (const msg of messages) {
+        if (!msg || typeof msg.role !== 'string' || typeof msg.content !== 'string') {
+          return { success: false, error: 'Each message must have role and content strings' };
+        }
+        if (!['user', 'assistant'].includes(msg.role)) {
+          return { success: false, error: 'Message role must be "user" or "assistant"' };
+        }
+        // Limit individual message length to prevent abuse
+        if (msg.content.length > 50000) {
+          return { success: false, error: 'Message content too long (max 50000 characters)' };
+        }
+      }
+
       const settings = await loadSettings();
       const apiKey = settings.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
 
@@ -881,15 +919,19 @@ function registerIpcHandlers(ipcMain) {
   // Settings Handlers
   // ============================================
 
-  ipcMain.handle('settings:get', async (event, key) => {
-    const settings = await loadSettings();
-    return { success: true, data: settings[key] };
-  });
-
   const ALLOWED_SETTINGS_KEYS = [
     'anthropicApiKey', 'backupRoot', 'autoRefreshInterval',
     'theme', 'dockerSocketPath', 'defaultBcVersion',
   ];
+
+  ipcMain.handle('settings:get', async (event, key) => {
+    // Validate key is in the allowlist to prevent reading arbitrary data
+    if (!key || typeof key !== 'string' || !ALLOWED_SETTINGS_KEYS.includes(key)) {
+      return { success: false, error: 'Invalid settings key' };
+    }
+    const settings = await loadSettings();
+    return { success: true, data: settings[key] };
+  });
 
   ipcMain.handle('settings:set', async (event, key, value) => {
     if (!ALLOWED_SETTINGS_KEYS.includes(key)) {

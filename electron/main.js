@@ -5,7 +5,7 @@
  * It creates the browser window and handles IPC communication.
  */
 
-const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -47,8 +47,13 @@ function registerCustomProtocol() {
     }
 
     // Build the full file path
-    const outDir = path.join(getAppPath(), 'out');
-    let fullPath = path.join(outDir, filePath);
+    const outDir = path.resolve(getAppPath(), 'out');
+    let fullPath = path.resolve(outDir, filePath.replace(/^\//, ''));
+
+    // SECURITY: Prevent path traversal - ensure resolved path is within outDir
+    if (!fullPath.startsWith(outDir + path.sep) && fullPath !== outDir) {
+      return new Response('Forbidden', { status: 403 });
+    }
 
     // Handle directory requests - append index.html
     try {
@@ -90,6 +95,27 @@ function createWindow() {
     },
     show: false, // Don't show until ready
     backgroundColor: '#1f2937', // Match app background
+  });
+
+  // SECURITY: Inject Content Security Policy headers for the Electron window
+  // This protects against XSS even when loading local content
+  const cspHeader = [
+    "default-src 'self' app:",
+    "script-src 'self' 'unsafe-inline' app:",
+    "style-src 'self' 'unsafe-inline' app:",
+    "img-src 'self' data: app:",
+    "connect-src 'self' ws: wss: app:",
+    "font-src 'self' app:",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [cspHeader],
+      },
+    });
   });
 
   // Load the app
