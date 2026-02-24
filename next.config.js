@@ -8,14 +8,7 @@ const nextConfig = {
   // For dev/web mode, we need API routes which require server-side rendering
   ...(isElectronBuild && { output: 'export' }),
 
-  experimental: {
-    optimizePackageImports: ['lucide-react', 'date-fns'],
-    ...(isElectronBuild && {
-      missingSuspenseWithCSRBailout: false,
-    }),
-  },
-
-  // Disable image optimization for static export (Electron needs unoptimized)
+  // Disable image optimization for static export
   images: {
     unoptimized: true,
   },
@@ -31,23 +24,11 @@ const nextConfig = {
   // Trailing slash for proper file:// navigation in Electron
   trailingSlash: true,
 
-  // Security headers for web mode
-  ...(!isElectronBuild && {
-    async headers() {
-      return [
-        {
-          source: '/:path*',
-          headers: [
-            { key: 'X-Content-Type-Options', value: 'nosniff' },
-            { key: 'X-Frame-Options', value: 'DENY' },
-            { key: 'X-XSS-Protection', value: '1; mode=block' },
-            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-            { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-            { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
-            { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'" },
-          ],
-        },
-      ];
+  // Exclude API routes from static export (they're handled by Electron IPC)
+  ...(isElectronBuild && {
+    experimental: {
+      // Skip generating API routes in static export
+      missingSuspenseWithCSRBailout: false,
     },
   }),
 };

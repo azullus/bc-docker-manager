@@ -1,10 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## BC Docker Manager
 
-BC Docker Manager is a **desktop application** (Electron + Next.js) for managing Business Central Docker containers. It provides a native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and **one-click container deployment** via Install-BC-Helper.ps1.
+Desktop application (Electron 35 + Next.js 14.2) for managing Business Central Docker containers. Native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and one-click container deployment. Standalone repo: `azullus/bc-docker-manager`.
 
 ## Architecture
 
@@ -31,6 +29,8 @@ BC Docker Manager is a **desktop application** (Electron + Next.js) for managing
 | `lib/types.ts` | TypeScript interfaces |
 | `app/create/page.tsx` | Container creation wizard |
 | `app/settings/page.tsx` | App configuration |
+| `lib/hns-error-detector.ts` | HNS error pattern detection |
+| `middleware.ts` | CSRF protection |
 
 ## Development Commands
 
@@ -301,58 +301,10 @@ host network service not running         → Service Failure
 - Check write permissions to `%APPDATA%`
 - Settings stored in `bc-container-manager/settings.json`
 
-## Build Status
+## CI/CD
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Next.js Build | Passing | `.next/` (45 MB) |
-| Electron Build | Passing | `dist/BC Container Manager-Setup-1.0.0.exe` (147 MB) |
-| Jest Tests | Passing | Run with `npm test` |
+GitHub Actions (`.github/workflows/`):
+- `build-test.yml` — Windows runner, Node 20, type-check, tests, electron:pack
+- `ci.yml` — Lint and build checks
+- `release.yml` — Release automation
 
-### Known Issues
-- RAG fallback integrated via OFFLINE-AI-CHATBOT
-
-## Multi-Agent Worktree Protocol
-
-This project supports parallel development using Git worktrees. When multiple Claude agents work simultaneously:
-
-### Worktree Structure
-```
-AI-Projects/
-├── BC-Docker-Manager/              ← Main worktree (main branch)
-└── BC-Docker-Manager-worktrees/    ← Feature worktrees
-    ├── feature-ui/                 ← Agent 1 workspace
-    ├── feature-api/                ← Agent 2 workspace
-    └── bugfix-docker/              ← Agent 3 workspace
-```
-
-### Agent Rules
-1. **Check assignment** - Confirm which worktree/branch you're assigned to
-2. **Stay in your lane** - Only modify files in YOUR worktree
-3. **Branch naming** - Use `feature/`, `bugfix/`, or `refactor/` prefixes
-4. **Commit frequently** - Small, atomic commits with clear messages
-5. **Push before ending** - Always push to remote before session ends
-6. **Never touch main** - Only merge via PR after review
-
-### Setup Commands
-```bash
-# Create worktrees directory
-mkdir -p ../BC-Docker-Manager-worktrees
-
-# Create feature worktrees
-git worktree add ../BC-Docker-Manager-worktrees/feature-ui -b feature/ui-improvements
-git worktree add ../BC-Docker-Manager-worktrees/feature-api -b feature/api-updates
-git worktree add ../BC-Docker-Manager-worktrees/bugfix-docker -b bugfix/docker-connection
-
-# List active worktrees
-git worktree list
-
-# Remove worktree when done
-git worktree remove ../BC-Docker-Manager-worktrees/feature-ui
-```
-
-### Merge Workflow
-1. Push feature branch to remote
-2. Create PR on GitHub
-3. Review and merge to main
-4. Delete feature branch and worktree
