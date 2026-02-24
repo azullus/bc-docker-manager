@@ -115,9 +115,14 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Handle external links
+  // Handle external links (only allow http/https URLs)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (['http:', 'https:'].includes(parsed.protocol)) {
+        shell.openExternal(url);
+      }
+    } catch { /* ignore invalid URLs */ }
     return { action: 'deny' };
   });
 
@@ -128,11 +133,14 @@ function createWindow() {
 
   // Handle navigation to BC web client
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    // Allow internal navigation, open BC URLs externally
-    if (url.includes('/BC/') || url.includes(':443')) {
-      event.preventDefault();
-      shell.openExternal(url);
-    }
+    // Allow internal navigation, open BC URLs externally (only http/https)
+    try {
+      const parsed = new URL(url);
+      if (['http:', 'https:'].includes(parsed.protocol) && (url.includes('/BC/') || url.includes(':443'))) {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    } catch { /* ignore invalid URLs */ }
   });
 }
 
@@ -153,6 +161,17 @@ function setupIpcHandlers() {
     'scripts/Diagnose-HNS-Ports.ps1',
   ];
 
+  // SECURITY: Sanitize PowerShell arguments to prevent command injection
+  function sanitizePowerShellArg(arg) {
+    if (typeof arg !== 'string') return String(arg);
+    // Escape single quotes for PowerShell (double them up)
+    return arg.replace(/'/g, "''");
+  }
+
+  function validateContainerName(name) {
+    return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(name);
+  }
+
   ipcMain.handle('run-powershell', async (event, { script, args }) => {
     return new Promise((resolve, reject) => {
       // SECURITY: Validate script is in whitelist
@@ -165,6 +184,34 @@ function setupIpcHandlers() {
         return;
       }
 
+      // SECURITY: Validate and sanitize arguments to prevent command injection
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === '-ContainerName' && i + 1 < args.length) {
+          if (!validateContainerName(args[i + 1])) {
+            mainWindow?.webContents.send('powershell-output', {
+              type: 'stderr',
+              data: `[ERROR] Invalid container name format: ${args[i + 1]}\n`
+            });
+            return reject(new Error('Invalid container name format'));
+          }
+        }
+        // Reject args containing shell metacharacters (including password values)
+        if (args[i] !== '-Password') {
+          if (/[;&|`$(){}]/.test(args[i])) {
+            mainWindow?.webContents.send('powershell-output', {
+              type: 'stderr',
+              data: `[ERROR] Invalid characters in argument: ${args[i]}\n`
+            });
+            return reject(new Error('Invalid characters in argument'));
+          }
+        }
+      }
+      // Sanitize all arguments
+      const sanitizedArgs = args.map((arg, i) => {
+        // Don't sanitize parameter names (they start with -)
+        if (typeof arg === 'string' && arg.startsWith('-')) return arg;
+        return sanitizePowerShellArg(arg);
+      });
       // Resolve script path based on dev/prod environment
       // Scripts are unpacked from asar to app.asar.unpacked/scripts/
       let scriptPath;
@@ -177,8 +224,8 @@ function setupIpcHandlers() {
       }
 
       // Mask sensitive args in debug output
-      const safeArgs = args.map((arg, i) => {
-        if (i > 0 && args[i - 1] === '-Password') return '********';
+      const safeArgs = sanitizedArgs.map((arg, i) => {
+        if (i > 0 && sanitizedArgs[i - 1] === '-Password') return '********';
         return arg;
       });
 
@@ -212,7 +259,7 @@ function setupIpcHandlers() {
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
         '-File', scriptPath,
-        ...args
+        ...sanitizedArgs
       ]);
 
       let stdout = '';
@@ -254,8 +301,16 @@ function setupIpcHandlers() {
     return dialog.showSaveDialog(mainWindow, options);
   });
 
-  // Handle opening external URLs
+  // Handle opening external URLs (only allow http/https)
   ipcMain.handle('open-external', async (event, url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Only http/https URLs are allowed');
+      }
+    } catch (e) {
+      return;
+    }
     return shell.openExternal(url);
   });
 
@@ -307,13 +362,20 @@ function requestElevation() {
   const exePath = app.getPath('exe');
 
   // Show elevation dialog
-  dialog.showMessageBoxSync({
+  const result = dialog.showMessageBoxSync({
     type: 'warning',
     title: 'Administrator Privileges Required',
     message: 'BC Container Manager requires administrator privileges to manage Docker containers and network settings.',
     detail: 'The application will now restart with administrator privileges. Click OK to continue.',
-    buttons: ['OK', 'Cancel']
+    buttons: ['OK', 'Cancel'],
+    cancelId: 1,
   });
+
+  if (result === 1) {
+    // User clicked Cancel - exit without elevation
+    app.quit();
+    return;
+  }
 
   // Relaunch with elevation using PowerShell Start-Process
   spawn('powershell.exe', [

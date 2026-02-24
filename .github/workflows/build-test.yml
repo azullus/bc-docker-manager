@@ -28,6 +28,9 @@ jobs:
     - name: Run linter
       run: npm run lint
 
+    - name: Type check
+      run: npx tsc --noEmit
+
     - name: Run tests
       run: npm run test:coverage
 
@@ -42,5 +45,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: bc-manager-build-${{ github.sha }}
-        path: dist4/win-unpacked/
+        path: dist7/win-unpacked/
         retention-days: 7

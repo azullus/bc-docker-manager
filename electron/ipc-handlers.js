@@ -575,6 +575,11 @@ function registerIpcHandlers(ipcMain) {
   });
 
   ipcMain.handle('backups:create', async (event, containerId) => {
+    const idValidation = validateContainerId(containerId);
+    if (!idValidation.valid) {
+      return { success: false, error: idValidation.error };
+    }
+
     try {
       const container = docker.getContainer(containerId);
       const info = await container.inspect();
@@ -700,9 +705,10 @@ function registerIpcHandlers(ipcMain) {
 
   ipcMain.handle('backups:restore', async (event, backupPath, containerName) => {
     try {
-      // Validate container name
-      if (!containerName || typeof containerName !== 'string') {
-        return { success: false, error: 'Container name is required' };
+      // Validate container name format
+      const nameValidation = validateContainerId(containerName);
+      if (!nameValidation.valid) {
+        return { success: false, error: 'Invalid container name format' };
       }
 
       // Validate backup path
@@ -880,7 +886,15 @@ function registerIpcHandlers(ipcMain) {
     return { success: true, data: settings[key] };
   });
 
+  const ALLOWED_SETTINGS_KEYS = [
+    'anthropicApiKey', 'backupRoot', 'autoRefreshInterval',
+    'theme', 'dockerSocketPath', 'defaultBcVersion',
+  ];
+
   ipcMain.handle('settings:set', async (event, key, value) => {
+    if (!ALLOWED_SETTINGS_KEYS.includes(key)) {
+      return { success: false, error: `Setting key "${key}" is not allowed` };
+    }
     try {
       const settings = await loadSettings();
       settings[key] = value;

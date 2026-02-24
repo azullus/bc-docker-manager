@@ -108,9 +108,9 @@ jobs:
         "@ | Out-File -FilePath "RELEASE_NOTES.md" -Encoding UTF8
 
         # Generate checksums
-        Get-ChildItem dist4/*.exe | ForEach-Object {
+        Get-ChildItem dist7/*.exe | ForEach-Object {
           $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-          "$hash  $($_.Name)" | Out-File -FilePath "dist4/$($_.Name).sha256" -Encoding ASCII
+          "$hash  $($_.Name)" | Out-File -FilePath "dist7/$($_.Name).sha256" -Encoding ASCII
           Add-Content -Path "RELEASE_NOTES.md" -Value "- **$($_.Name)**: ``$hash``"
         }
 
@@ -123,7 +123,7 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          dist4/*.exe
-          dist4/*.exe.sha256
+          dist7/*.exe
+          dist7/*.exe.sha256
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
