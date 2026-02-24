@@ -104,8 +104,9 @@ function createWindow() {
     "script-src 'self' 'unsafe-inline' app:",
     "style-src 'self' 'unsafe-inline' app:",
     "img-src 'self' data: app:",
-    "connect-src 'self' ws: wss: app:",
+    "connect-src 'self' ws://localhost:* wss://localhost:* app:",
     "font-src 'self' app:",
+    "object-src 'none'",
     "frame-ancestors 'none'",
   ].join('; ');
 

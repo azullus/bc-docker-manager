@@ -824,6 +824,18 @@ function registerIpcHandlers(ipcMain) {
       if (!Array.isArray(messages) || messages.length === 0) {
         return { success: false, error: 'Messages must be a non-empty array' };
       }
+      if (messages.length > 100) {
+        return { success: false, error: 'Too many messages' };
+      }
+      // Validate containerContext if provided
+      if (containerContext !== undefined && containerContext !== null) {
+        if (typeof containerContext !== 'object' || Array.isArray(containerContext)) {
+          return { success: false, error: 'containerContext must be an object' };
+        }
+        if (JSON.stringify(containerContext).length > 10000) {
+          return { success: false, error: 'containerContext too large' };
+        }
+      }
       // Validate each message has role and content strings
       for (const msg of messages) {
         if (!msg || typeof msg.role !== 'string' || typeof msg.content !== 'string') {
@@ -924,6 +936,15 @@ function registerIpcHandlers(ipcMain) {
     'theme', 'dockerSocketPath', 'defaultBcVersion',
   ];
 
+  const SETTINGS_VALIDATORS = {
+    anthropicApiKey: (v) => typeof v === 'string' && v.length <= 500,
+    backupRoot: (v) => typeof v === 'string' && v.length <= 260,
+    autoRefreshInterval: (v) => typeof v === 'number' && v >= 1000 && v <= 300000,
+    theme: (v) => typeof v === 'string' && ['light', 'dark', 'system'].includes(v),
+    dockerSocketPath: (v) => typeof v === 'string' && v.length <= 260,
+    defaultBcVersion: (v) => typeof v === 'string' && v.length <= 100,
+  };
+
   ipcMain.handle('settings:get', async (event, key) => {
     // Validate key is in the allowlist to prevent reading arbitrary data
     if (!key || typeof key !== 'string' || !ALLOWED_SETTINGS_KEYS.includes(key)) {
@@ -937,6 +958,10 @@ function registerIpcHandlers(ipcMain) {
     if (!ALLOWED_SETTINGS_KEYS.includes(key)) {
       return { success: false, error: `Setting key "${key}" is not allowed` };
     }
+    const validator = SETTINGS_VALIDATORS[key];
+    if (validator && !validator(value)) {
+      return { success: false, error: `Invalid value for setting "${key}"` };
+    }
     try {
       const settings = await loadSettings();
       settings[key] = value;
@@ -949,7 +974,13 @@ function registerIpcHandlers(ipcMain) {
 
   ipcMain.handle('settings:get-all', async () => {
     const settings = await loadSettings();
-    return { success: true, data: settings };
+    const filtered = {};
+    for (const key of ALLOWED_SETTINGS_KEYS) {
+      if (key in settings) {
+        filtered[key] = settings[key];
+      }
+    }
+    return { success: true, data: filtered };
   });
 }
 
