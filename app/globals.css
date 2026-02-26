@@ -122,6 +122,45 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Container status transition animations */
+.status-indicator {
+  @apply transition-all duration-500 ease-in-out;
+}
+
+.status-running .status-indicator {
+  @apply bg-green-500;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+.status-restarting .status-indicator {
+  @apply bg-yellow-500;
+  animation: status-pulse 1s ease-in-out infinite;
+}
+
+/* Card hover enhancements */
+.card-interactive {
+  @apply transition-all duration-200 ease-out;
+}
+
+.card-interactive:hover {
+  @apply border-gray-500 shadow-lg shadow-black/20;
+  transform: translateY(-1px);
+}
+
+.card-interactive:active {
+  transform: translateY(0);
+}
+
+/* Container card status transition */
+.container-status-badge {
+  @apply transition-all duration-300 ease-in-out;
+}
+
 /* Sidebar */
 .sidebar {
   @apply w-64 bg-gray-800 border-r border-gray-700 h-screen fixed left-0 top-0;
@@ -133,4 +172,9 @@ body {
 
 .sidebar-link.active {
   @apply bg-blue-600/20 text-blue-400 border-r-2 border-blue-400;
+}
+
+/* Keyboard shortcut badge */
+.kbd {
+  @apply inline-flex items-center px-1.5 py-0.5 text-xs font-mono bg-gray-700 border border-gray-600 rounded text-gray-400;
 }

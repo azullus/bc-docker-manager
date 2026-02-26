@@ -1,17 +1,38 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Container, Activity, HardDrive, AlertCircle, RefreshCw } from 'lucide-react';
+import { Container, Activity, HardDrive, AlertCircle, RefreshCw, GitCompare, X, Clock } from 'lucide-react';
 import ContainerCard from '@/components/ContainerCard';
+import ContainerComparison from '@/components/ContainerComparison';
 import { BCContainer, DashboardStats } from '@/lib/types';
-import { listContainers, containerAction, listBackups } from '@/lib/electron-api';
+import { listContainers, containerAction, listBackups, getSetting } from '@/lib/electron-api';
 
 export default function DashboardPage() {
   const [containers, setContainers] = useState<BCContainer[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [selectedContainers, setSelectedContainers] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load configurable refresh interval from settings
+  useEffect(() => {
+    const loadRefreshInterval = async () => {
+      try {
+        const interval = await getSetting<number>('autoRefreshInterval');
+        if (interval && interval > 0) {
+          setRefreshInterval(interval * 1000); // Settings stores seconds
+        }
+      } catch {
+        // Use default 30s
+      }
+    };
+    loadRefreshInterval();
+  }, []);
 
   const fetchContainers = useCallback(async () => {
     try {
@@ -19,6 +40,7 @@ export default function DashboardPage() {
       const data = await listContainers();
 
       setContainers(data);
+      setLastRefreshed(new Date());
 
       // Calculate stats
       const running = data.filter((c: BCContainer) => c.status === 'running').length;
@@ -49,11 +71,51 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Auto-refresh with configurable interval and proper cleanup
   useEffect(() => {
     fetchContainers();
-    const interval = setInterval(fetchContainers, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, [fetchContainers]);
+
+    // Clear any previous interval to prevent memory leaks
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    intervalRef.current = setInterval(fetchContainers, refreshInterval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [fetchContainers, refreshInterval]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+R: Refresh containers
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        fetchContainers();
+      }
+      // Ctrl+N: Navigate to create container
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        window.location.href = '/create';
+      }
+      // Escape: Clear selection or close comparison
+      if (e.key === 'Escape') {
+        if (showComparison) {
+          setShowComparison(false);
+        } else if (selectedContainers.length > 0) {
+          setSelectedContainers([]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fetchContainers, showComparison, selectedContainers]);
 
   const handleContainerAction = useCallback(async (action: 'start' | 'stop' | 'restart' | 'remove', containerId: string) => {
     try {
@@ -65,22 +127,78 @@ export default function DashboardPage() {
     }
   }, [fetchContainers]);
 
+  const handleContainerSelect = useCallback((containerId: string) => {
+    setSelectedContainers(prev => {
+      if (prev.includes(containerId)) {
+        return prev.filter(id => id !== containerId);
+      }
+      // Max 2 selections for comparison
+      if (prev.length >= 2) {
+        return [prev[1], containerId];
+      }
+      return [...prev, containerId];
+    });
+  }, []);
+
+  const comparedContainers = selectedContainers
+    .map(id => containers.find(c => c.id === id))
+    .filter((c): c is BCContainer => c !== undefined);
+
+  const formatLastRefreshed = () => {
+    if (!lastRefreshed) return '';
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - lastRefreshed.getTime()) / 1000);
+    if (diffSec < 5) return 'just now';
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    return `${diffMin}m ago`;
+  };
+
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">BC Containers</h1>
-          <p className="text-gray-400">Manage your Business Central Docker containers</p>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-400">Manage your Business Central Docker containers</p>
+            {lastRefreshed && (
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <Clock className="w-3 h-3" />
+                Last refreshed {formatLastRefreshed()}
+              </span>
+            )}
+          </div>
         </div>
-        <button
-          onClick={fetchContainers}
-          disabled={loading}
-          className="btn btn-secondary flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedContainers.length === 2 && (
+            <button
+              onClick={() => setShowComparison(true)}
+              className="btn btn-primary flex items-center gap-2 animate-slide-in"
+            >
+              <GitCompare className="w-4 h-4" />
+              Compare ({selectedContainers.length})
+            </button>
+          )}
+          {selectedContainers.length > 0 && (
+            <button
+              onClick={() => setSelectedContainers([])}
+              className="btn btn-ghost flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </button>
+          )}
+          <button
+            onClick={fetchContainers}
+            disabled={loading}
+            className="btn btn-secondary flex items-center gap-2"
+            title="Refresh (Ctrl+R)"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -170,15 +288,40 @@ export default function DashboardPage() {
 
       {/* Container Grid */}
       {containers.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {containers.map((container) => (
-            <ContainerCard
-              key={container.id}
-              container={container}
-              onAction={handleContainerAction}
-            />
-          ))}
-        </div>
+        <>
+          {selectedContainers.length > 0 && selectedContainers.length < 2 && (
+            <div className="mb-4 text-sm text-gray-400 animate-fade-in">
+              Select one more container to compare side-by-side
+            </div>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {containers.map((container) => (
+              <ContainerCard
+                key={container.id}
+                container={container}
+                onAction={handleContainerAction}
+                selected={selectedContainers.includes(container.id)}
+                onSelect={handleContainerSelect}
+              />
+            ))}
+          </div>
+
+          {/* Keyboard Shortcuts Hint */}
+          <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-600">
+            <span><kbd className="kbd">Ctrl+R</kbd> Refresh</span>
+            <span><kbd className="kbd">Ctrl+N</kbd> New Container</span>
+            <span><kbd className="kbd">Esc</kbd> Clear Selection</span>
+          </div>
+        </>
+      )}
+
+      {/* Container Comparison Modal */}
+      {showComparison && comparedContainers.length === 2 && (
+        <ContainerComparison
+          containerA={comparedContainers[0]}
+          containerB={comparedContainers[1]}
+          onClose={() => setShowComparison(false)}
+        />
       )}
     </div>
   );
