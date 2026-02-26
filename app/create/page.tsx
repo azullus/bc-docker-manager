@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   PlusCircle,
@@ -54,7 +54,7 @@ interface FormData {
 }
 
 export default function CreateContainerPage() {
-  const [isElectronApp, setIsElectronApp] = useState(false);
+  const [isElectronApp] = useState(() => isElectron());
   const [formData, setFormData] = useState<FormData>({
     version: 'Latest',
     containerName: '',
@@ -64,7 +64,6 @@ export default function CreateContainerPage() {
     installTestToolkit: true,
     enableScheduledBackups: true,
   });
-  const [hnsError, setHnsError] = useState<HNSError | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
 
@@ -73,27 +72,20 @@ export default function CreateContainerPage() {
   const status = deployment.status;
   const output = deployment.output;
 
-  useEffect(() => {
-    setIsElectronApp(isElectron());
-  }, []);
+  // Derive HNS error from deployment state (no need for separate state)
+  const hnsError = useMemo<HNSError | null>(() => {
+    if (status === 'error' && output.length > 0) {
+      return detectHNSError(output);
+    }
+    return null;
+  }, [status, output]);
 
   useEffect(() => {
     // Auto-scroll output
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-
-    // Detect HNS errors when deployment fails
-    if (status === 'error' && output.length > 0) {
-      const detectedError = detectHNSError(output);
-      if (detectedError) {
-        setHnsError(detectedError);
-      }
-    } else if (status === 'running') {
-      // Clear error when new deployment starts
-      setHnsError(null);
-    }
-  }, [output, status]);
+  }, [output]);
 
   const generateContainerName = (version: string): string => {
     const versionPart = version.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -119,8 +111,8 @@ export default function CreateContainerPage() {
       return;
     }
 
-    // Clear previous error state
-    setHnsError(null);
+    // HNS error state is derived from deployment status via useMemo
+    // It automatically clears when deployment status changes to 'running'
 
     // Start global deployment tracking
     startDeployment(formData.containerName, formData.version);

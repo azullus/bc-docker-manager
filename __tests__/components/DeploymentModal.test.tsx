@@ -1,9 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import DeploymentModal from '@/components/DeploymentModal';
+import type { DeploymentStatus } from '@/lib/deployment-context';
 
 // Mock deployment context
 const mockDeployment = {
-  status: 'idle' as const,
+  status: 'idle' as DeploymentStatus,
   containerName: null as string | null,
   version: null as string | null,
   output: [] as string[],

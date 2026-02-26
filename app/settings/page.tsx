@@ -46,7 +46,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
-  const [isElectronApp, setIsElectronApp] = useState(false);
+  const [isElectronApp] = useState(() => isElectron());
   const [diagnostics, setDiagnostics] = useState<Record<string, unknown> | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
 
@@ -73,7 +73,6 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setIsElectronApp(isElectron());
     loadSettings();
   }, [loadSettings]);
 
