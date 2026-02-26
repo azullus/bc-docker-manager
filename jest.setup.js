@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Mock DOM APIs not available in JSDOM
+Element.prototype.scrollIntoView = jest.fn();
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter: () => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Play,
@@ -18,11 +18,25 @@ import { BCContainer } from '@/lib/types';
 interface ContainerCardProps {
   container: BCContainer;
   onAction: (action: 'start' | 'stop' | 'restart' | 'remove', containerId: string) => Promise<void>;
+  selected?: boolean;
+  onSelect?: (containerId: string) => void;
 }
 
-export default function ContainerCard({ container, onAction }: ContainerCardProps) {
+export default function ContainerCard({ container, onAction, selected, onSelect }: ContainerCardProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [prevStatus, setPrevStatus] = useState(container.status);
+  const [statusAnimating, setStatusAnimating] = useState(false);
+
+  // Detect status changes and trigger animation
+  useEffect(() => {
+    if (container.status !== prevStatus) {
+      setStatusAnimating(true);
+      setPrevStatus(container.status);
+      const timer = setTimeout(() => setStatusAnimating(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [container.status, prevStatus]);
 
   const handleAction = async (action: 'start' | 'stop' | 'restart' | 'remove') => {
     setLoading(action);
@@ -36,11 +50,25 @@ export default function ContainerCard({ container, onAction }: ContainerCardProp
 
   const statusClass = `status-${container.status}`;
 
+  const statusDotColor = () => {
+    switch (container.status) {
+      case 'running': return 'bg-green-500';
+      case 'restarting': return 'bg-yellow-500 animate-status-pulse';
+      case 'paused': return 'bg-yellow-500';
+      case 'exited':
+      case 'dead': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
   return (
-    <div className="card hover:border-gray-600 transition-colors">
+    <div
+      className={`card card-interactive ${selected ? 'border-blue-500 ring-1 ring-blue-500/30' : ''} ${statusAnimating ? 'animate-fade-in' : ''}`}
+      onClick={() => onSelect?.(container.id)}
+    >
       <div className="card-header">
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${container.status === 'running' ? 'bg-green-500' : 'bg-gray-500'}`} />
+          <div className={`w-3 h-3 rounded-full transition-colors duration-500 ${statusDotColor()}`} />
           <div>
             <h3 className="card-title">{container.name}</h3>
             <p className="text-sm text-gray-400">

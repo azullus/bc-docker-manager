@@ -3,12 +3,7 @@
  * Desktop app stores most config in settings.json - env vars are optional
  */
 
-const optionalEnvVars = [
-  'ANTHROPIC_API_KEY',  // AI troubleshooting (also stored in app settings)
-  'DOCKER_HOST',        // Custom Docker socket path
-] as const;
-
-type OptionalEnvVar = (typeof optionalEnvVars)[number];
+type OptionalEnvVar = 'ANTHROPIC_API_KEY' | 'DOCKER_HOST';
 
 interface EnvValidationResult {
   valid: boolean;
