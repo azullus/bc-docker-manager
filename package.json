@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "ai": "^2.2.37",
     "date-fns": "^3.6.0",
     "dockerode": "^4.0.2",
     "lucide-react": "^0.562.0",
