@@ -10,9 +10,6 @@ const nextConfig = {
 
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns'],
-    ...(isElectronBuild && {
-      missingSuspenseWithCSRBailout: false,
-    }),
   },
 
   // Disable image optimization for static export (Electron needs unoptimized)
@@ -20,13 +17,23 @@ const nextConfig = {
     unoptimized: true,
   },
 
-  // Allow connecting to Docker socket (for dev server mode)
+  // Turbopack config (default bundler in Next.js 16)
+  turbopack: {
+    // Set root to this project directory to avoid workspace root inference issues
+    root: __dirname,
+  },
+
+  // Webpack config (used with --webpack flag or fallback)
   webpack: (config, { isServer }) => {
+    // Allow connecting to Docker socket (for dev server mode)
     if (isServer) {
       config.externals.push('dockerode');
     }
     return config;
   },
+
+  // Server external packages (replaces webpack externals for Turbopack)
+  serverExternalPackages: ['dockerode'],
 
   // Trailing slash for proper file:// navigation in Electron
   trailingSlash: true,

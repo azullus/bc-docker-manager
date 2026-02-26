@@ -33,14 +33,12 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [isElectronApp, setIsElectronApp] = useState(false);
+  const [isElectronApp] = useState(() => isElectron());
   const [dockerStatus, setDockerStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const { deployment, isDeploying } = useDeployment();
 
   useEffect(() => {
-    setIsElectronApp(isElectron());
-
     // Check Docker connection
     const checkDocker = async () => {
       try {

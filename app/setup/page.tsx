@@ -35,7 +35,7 @@ interface SystemInfo {
 }
 
 export default function SetupPage() {
-  const [isElectronApp, setIsElectronApp] = useState(false);
+  const [isElectronApp] = useState(() => isElectron());
   const [status, setStatus] = useState<SetupStatus>({
     docker: 'checking',
     dockerRunning: 'checking',
@@ -45,11 +45,6 @@ export default function SetupPage() {
   });
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  useEffect(() => {
-    setIsElectronApp(isElectron());
-    checkAllStatus();
-  }, []);
 
   const checkAllStatus = async () => {
     setIsRefreshing(true);
@@ -139,6 +134,11 @@ export default function SetupPage() {
       setIsRefreshing(false);
     }, 1500);
   };
+
+  // Initial status check on mount - calling async function that sets multiple states
+  // This is a legitimate data-fetching pattern
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { checkAllStatus(); }, []);
 
   const handleInstallDocker = () => {
     openExternal('https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment');

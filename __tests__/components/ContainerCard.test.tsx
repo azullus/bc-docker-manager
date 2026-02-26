@@ -4,9 +4,11 @@ import { BCContainer } from '@/lib/types';
 
 // Mock Next.js Link component
 jest.mock('next/link', () => {
-  return ({ children, href }: { children: React.ReactNode; href: string }) => (
+  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   );
+  MockLink.displayName = 'MockLink';
+  return MockLink;
 });
 
 describe('ContainerCard', () => {
@@ -190,7 +192,7 @@ describe('ContainerCard', () => {
 
   describe('Port Display', () => {
     it('should show +N more when more than 3 ports', () => {
-      const manyPortsContainer = {
+      const manyPortsContainer: BCContainer = {
         ...mockContainer,
         ports: [
           { privatePort: 8080, publicPort: 54525, type: 'tcp' },

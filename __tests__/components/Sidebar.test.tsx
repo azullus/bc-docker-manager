@@ -43,9 +43,11 @@ jest.mock('@/components/DeploymentModal', () => {
 
 // Mock Next.js Link component
 jest.mock('next/link', () => {
-  return ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+  const MockLink = ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
     <a href={href} className={className}>{children}</a>
   );
+  MockLink.displayName = 'MockLink';
+  return MockLink;
 });
 
 import { isElectron, getDockerInfo } from '@/lib/electron-api';

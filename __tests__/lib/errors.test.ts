@@ -17,12 +17,12 @@ describe('Error Utilities', () => {
     });
 
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
       console.error = originalConsoleError;
     });
 
     it('should return generic message in production', () => {
-      process.env.NODE_ENV = 'production';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       const result = sanitizeError(new Error('Internal database error'));
 
       expect(result.message).toBe('An unexpected error occurred');
@@ -30,7 +30,7 @@ describe('Error Utilities', () => {
     });
 
     it('should return detailed message in development', () => {
-      process.env.NODE_ENV = 'development';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
       const result = sanitizeError(new Error('Internal database error'));
 
       expect(result.message).toBe('Internal database error');
@@ -39,7 +39,7 @@ describe('Error Utilities', () => {
     });
 
     it('should handle non-Error objects in development', () => {
-      process.env.NODE_ENV = 'development';
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
       const result = sanitizeError('string error');
 
       expect(result.message).toBe('string error');
