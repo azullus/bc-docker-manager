@@ -2,7 +2,7 @@
 
 ## BC Docker Manager
 
-Desktop application (Electron 35 + Next.js 14.2) for managing Business Central Docker containers. Native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and one-click container deployment. Standalone repo: `azullus/bc-docker-manager`.
+Desktop application (Electron 35 + Next.js 16) for managing Business Central Docker containers. Native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and one-click container deployment. Standalone repo: `azullus/bc-docker-manager`.
 
 ## Architecture
 
