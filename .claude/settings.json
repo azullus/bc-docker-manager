@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'INPUT=\"$CLAUDE_TOOL_INPUT\"; if echo \"$INPUT\" | grep -qiE \"\\.(env|env\\.local|env\\.production|env\\.development)\" ; then echo \"BLOCK: Do not edit .env files directly. Use environment-specific tooling or ask the user first.\" && exit 1; fi; if echo \"$INPUT\" | grep -qiE \"(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|bun\\.lockb)\" ; then echo \"BLOCK: Do not edit lock files directly. Run the package manager install command instead.\" && exit 1; fi; exit 0'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=\"$TOOL_INPUT_FILE_PATH\"; if [ -z \"$FILE\" ]; then exit 0; fi; if echo \"$FILE\" | grep -qE \"\\.(ts|tsx|js|jsx)$\"; then cd \"$PROJECT_DIR\" && npx eslint --fix \"$FILE\" 2>/dev/null; fi; exit 0'"
+          }
+        ]
+      }
+    ]
+  }
+}
