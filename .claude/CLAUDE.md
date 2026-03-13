@@ -308,3 +308,15 @@ GitHub Actions (`.github/workflows/`):
 - `ci.yml` — Lint and build checks
 - `release.yml` — Release automation
 
+## Cluster
+Apps
+
+## Dependencies
+- Upstream: None (Electron desktop app, self-contained)
+- Downstream: None
+
+## Agents & Skills
+- Cluster agents: app-qa
+- Cluster skills: /app-deploy
+- Universal: /dashboard, /triage, /kickoff, /release-prep, /impact-check
+
