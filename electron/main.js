@@ -91,7 +91,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // Required for dockerode
+      sandbox: true, // dockerode runs in main process via IPC, not renderer
     },
     show: false, // Don't show until ready
     backgroundColor: '#1f2937', // Match app background

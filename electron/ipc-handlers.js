@@ -11,7 +11,7 @@ const fsSync = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const { buildContext, getOfflineResponse, listDocuments } = require('./rag-helper');
-const { app } = require('electron');
+const { app, safeStorage } = require('electron');
 
 // Check if running in development mode
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -157,6 +157,48 @@ const BC_CONTAINER_PATTERN = /bc/i;
 
 // Default backup root
 const DEFAULT_BACKUP_ROOT = 'C:\\BCBackups';
+
+// Encrypted settings key prefix to distinguish from plaintext
+const ENCRYPTED_PREFIX = 'enc:';
+
+// Keys that should be encrypted at rest
+const ENCRYPTED_KEYS = ['anthropicApiKey'];
+
+/**
+ * Encrypts a string value using Electron's safeStorage (OS keychain).
+ * Returns Base64-encoded encrypted buffer prefixed with 'enc:'.
+ * Falls back to plaintext if encryption is unavailable (e.g., Linux without keyring).
+ */
+function encryptValue(value) {
+  if (!value || typeof value !== 'string') return value;
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(value);
+      return ENCRYPTED_PREFIX + encrypted.toString('base64');
+    }
+  } catch (e) {
+    devError('safeStorage encryption failed, storing plaintext:', e);
+  }
+  return value;
+}
+
+/**
+ * Decrypts a value previously encrypted with encryptValue().
+ * If the value is not prefixed with 'enc:', returns it as-is (plaintext migration).
+ */
+function decryptValue(value) {
+  if (!value || typeof value !== 'string') return value;
+  if (!value.startsWith(ENCRYPTED_PREFIX)) return value; // plaintext, not yet migrated
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = Buffer.from(value.slice(ENCRYPTED_PREFIX.length), 'base64');
+      return safeStorage.decryptString(encrypted);
+    }
+  } catch (e) {
+    devError('safeStorage decryption failed:', e);
+  }
+  return ''; // Cannot decrypt without keychain — return empty rather than ciphertext
+}
 
 // Docker connectivity state
 let dockerConnected = false;
@@ -1239,16 +1281,51 @@ use it to give accurate, organization-specific answers. Cite the documentation w
 async function loadSettings() {
   try {
     const data = await fs.readFile(settingsPath, 'utf8');
-    return JSON.parse(data);
+    const settings = JSON.parse(data);
+
+    // Migrate plaintext encrypted keys to encrypted form and decrypt for use
+    let needsSave = false;
+    for (const key of ENCRYPTED_KEYS) {
+      if (settings[key] && typeof settings[key] === 'string') {
+        if (!settings[key].startsWith(ENCRYPTED_PREFIX)) {
+          // Plaintext key found — encrypt and save (migration)
+          const plaintext = settings[key];
+          settings[key] = encryptValue(plaintext);
+          needsSave = true;
+        }
+      }
+    }
+    if (needsSave) {
+      // Save the migrated (now encrypted) settings back to disk
+      const dir = path.dirname(settingsPath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+    }
+
+    // Return settings with encrypted keys decrypted for runtime use
+    const result = { ...settings };
+    for (const key of ENCRYPTED_KEYS) {
+      if (result[key]) {
+        result[key] = decryptValue(result[key]);
+      }
+    }
+    return result;
   } catch {
     return {};
   }
 }
 
 async function saveSettings(settings) {
+  // Encrypt sensitive keys before writing to disk
+  const toSave = { ...settings };
+  for (const key of ENCRYPTED_KEYS) {
+    if (toSave[key] && typeof toSave[key] === 'string' && !toSave[key].startsWith(ENCRYPTED_PREFIX)) {
+      toSave[key] = encryptValue(toSave[key]);
+    }
+  }
   const dir = path.dirname(settingsPath);
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+  await fs.writeFile(settingsPath, JSON.stringify(toSave, null, 2));
 }
 
 async function safeReadDir(dirPath) {
