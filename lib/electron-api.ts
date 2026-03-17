@@ -441,6 +441,11 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
   if (!electron) {
     // Fall back to localStorage in web mode
     if (typeof window !== 'undefined') {
+      const sensitiveKeys = ['anthropicApiKey', 'apiKey', 'password', 'secret', 'token', 'credential'];
+      if (sensitiveKeys.some(k => key.toLowerCase().includes(k.toLowerCase()))) {
+        console.warn(`Cannot store sensitive key "${key}" outside of Electron's safeStorage`);
+        return;
+      }
       localStorage.setItem(`bc-manager-${key}`, JSON.stringify(value));
     }
     return;

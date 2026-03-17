@@ -15,6 +15,7 @@ import {
 import {
   isElectron,
   runPowerShell,
+  setSetting,
 } from '@/lib/electron-api';
 import { useDeployment } from '@/lib/deployment-context';
 import { detectHNSError, HNSError } from '@/lib/hns-error-detector';
@@ -130,8 +131,11 @@ export default function CreateContainerPage() {
       ];
 
       if (formData.auth === 'NavUserPassword') {
+        // Store password securely via Electron's safeStorage and pass via
+        // passwordFile convention — avoids plaintext password in CLI args
+        await setSetting('deployPassword', formData.password);
         args.push('-Username', formData.username);
-        args.push('-Password', formData.password);
+        args.push('-PasswordFile', 'env:BC_DEPLOY_PASSWORD');
       }
 
       if (formData.installTestToolkit) {
@@ -142,16 +146,7 @@ export default function CreateContainerPage() {
         args.push('-EnableScheduledBackups');
       }
 
-      // Mask password in output for security
-      const displayArgs = args.map((arg, i) => {
-        // Mask the password value (which follows -Password flag)
-        if (i > 0 && args[i - 1] === '-Password') {
-          return '********';
-        }
-        return arg;
-      });
-
-      addOutput(`Executing: Deploy-BC-Container.ps1 ${displayArgs.join(' ')}`);
+      addOutput(`Executing: Deploy-BC-Container.ps1 ${args.join(' ')}`);
       addOutput('');
 
       const result = await runPowerShell(scriptPath, args);
@@ -159,19 +154,19 @@ export default function CreateContainerPage() {
       if (result.exitCode === 0) {
         setDeploymentStatus('success');
         addOutput('');
-        addOutput('✓ Container deployed successfully!');
+        addOutput('\u2713 Container deployed successfully!');
         toast.success('Container created successfully!');
       } else {
         setDeploymentStatus('error');
         addOutput('');
-        addOutput(`✗ Deployment failed with exit code ${result.exitCode}`);
+        addOutput(`\u2717 Deployment failed with exit code ${result.exitCode}`);
         if (result.stderr) addOutput(result.stderr);
         toast.error('Container deployment failed - check for network issues');
       }
     } catch (error) {
       setDeploymentStatus('error');
       addOutput('');
-      addOutput(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      addOutput(`\u2717 Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast.error('Container deployment failed');
     }
   };
@@ -460,9 +455,9 @@ export default function CreateContainerPage() {
                 <div
                   key={i}
                   className={`${
-                    line.startsWith('✓')
+                    line.startsWith('\u2713')
                       ? 'text-green-400'
-                      : line.startsWith('✗')
+                      : line.startsWith('\u2717')
                       ? 'text-red-400'
                       : line.includes('WARNING')
                       ? 'text-yellow-400'

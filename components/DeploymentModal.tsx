@@ -25,7 +25,7 @@ export default function DeploymentModal({ isOpen, onClose }: DeploymentModalProp
   const handleClose = () => {
     // Only allow closing if not running, or confirm
     if (deployment.status === 'running') {
-      // Don't close while running - deployment continues in background
+      return;  // Don't close while running
     }
     onClose();
   };
@@ -106,9 +106,9 @@ export default function DeploymentModal({ isOpen, onClose }: DeploymentModalProp
               <div
                 key={i}
                 className={`${
-                  line.startsWith('✓') || line.includes('SUCCESS')
+                  line.startsWith('\u2713') || line.includes('SUCCESS')
                     ? 'text-green-400'
-                    : line.startsWith('✗') || line.includes('ERROR') || line.includes('error')
+                    : line.startsWith('\u2717') || line.includes('ERROR') || line.includes('error')
                     ? 'text-red-400'
                     : line.includes('WARNING') || line.includes('WARN')
                     ? 'text-yellow-400'

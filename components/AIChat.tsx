@@ -195,6 +195,7 @@ How can I help you today?`,
         if (form) {
           form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
+        hasProcessedInitialPrompt.current = false;
       }, 100);
       return () => clearTimeout(timer);
     }

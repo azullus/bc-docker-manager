@@ -67,6 +67,9 @@ export default function SettingsPage() {
       // Get app info
       const info = await getAppInfo();
       if (info) setAppInfo(info);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
