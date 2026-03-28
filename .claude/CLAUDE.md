@@ -12,7 +12,7 @@ Desktop application (Electron 35 + Next.js 16) for managing Business Central Doc
 - **IPC Handlers** - `electron/ipc-handlers.js` - Docker/backup/AI operations
 
 ### Frontend (React/Next.js)
-- **App Router** - Uses Next.js 14 app directory structure
+- **App Router** - Uses Next.js 16 app directory structure
 - **Client Components** - Interactive pages marked with 'use client'
 - **Tailwind CSS** - Utility-first styling with custom theme
 - **API Abstraction** - `lib/electron-api.ts` - Works in both web and Electron
