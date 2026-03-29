@@ -1,0 +1,41 @@
+name: Auto Fix
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  auto-fix:
+    runs-on: self-hosted
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint fix
+        run: npx eslint . --fix || true
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Run tests
+        if: steps.diff.outputs.changed == 'true'
+        run: npx jest --ci
+
+      - name: Commit fixes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: auto-fix lint and formatting"
+          git push
