@@ -1,0 +1,45 @@
+name: Scheduled Security & Dependency Check
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Every Sunday at 3 AM UTC
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run npm audit
+        run: |
+          echo "## Security Audit Report" > audit-report.md
+          echo "**Date:** $(date -u)" >> audit-report.md
+          echo "" >> audit-report.md
+          if npm audit --audit-level=moderate 2>&1 | tee audit-output.txt; then
+            echo "✅ No vulnerabilities found" >> audit-report.md
+          else
+            echo "⚠️ Vulnerabilities detected:" >> audit-report.md
+            echo '```' >> audit-report.md
+            cat audit-output.txt >> audit-report.md
+            echo '```' >> audit-report.md
+          fi
+      - name: Check outdated packages
+        run: |
+          echo "" >> audit-report.md
+          echo "## Outdated Packages" >> audit-report.md
+          echo '```' >> audit-report.md
+          npm outdated 2>&1 | tee -a audit-report.md || true
+          echo '```' >> audit-report.md
+      - name: Create issue if findings
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: '🔒 Weekly Security Scan — findings detected'
+          content-filepath: audit-report.md
+          labels: security,automated
