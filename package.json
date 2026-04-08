@@ -53,7 +53,7 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.7.3",
-    "wait-on": "^9.0.3"
+    "wait-on": "^9.0.4"
   },
   "build": {
     "extends": "electron-builder.yml"
