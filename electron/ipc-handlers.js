@@ -787,9 +787,11 @@ function registerIpcHandlers(ipcMain) {
         return { success: false, error: pathValidation.error || 'Invalid backup path' };
       }
 
+      const resolvedBackupPath = pathValidation.resolvedPath;
+
       // Verify backup path exists
       try {
-        await fs.access(backupPath);
+        await fs.access(resolvedBackupPath);
       } catch {
         return { success: false, error: 'Backup path not found' };
       }
@@ -821,7 +823,7 @@ function registerIpcHandlers(ipcMain) {
           '-ExecutionPolicy', 'Bypass',
           '-File', scriptPath,
           '-ContainerName', containerName,
-          '-BackupPath', backupPath,
+          '-BackupPath', resolvedBackupPath,
           '-Force'  // Skip confirmation since UI handles it
         ]);
 
