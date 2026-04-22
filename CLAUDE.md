@@ -4,6 +4,15 @@
 
 Desktop application (Electron 35 + Next.js 16) for managing Business Central Docker containers. Native Windows app for container management, log viewing, backup operations, AI-powered troubleshooting, and one-click container deployment. Standalone repo: `azullus/bc-docker-manager`.
 
+## Stack
+
+- **Desktop shell**: Electron 35 (main + preload + IPC handlers)
+- **Frontend**: Next.js 16 (App Router, static export), React 19, TypeScript
+- **Styling**: Tailwind CSS with custom theme
+- **AI**: `@anthropic-ai/sdk` called directly from the Electron main process via IPC (renderer never sees the key)
+- **PowerShell**: Bundled scripts executed from the main process; streaming stdout via IPC
+- **Docker**: Docker Engine API via named pipe (`//./pipe/docker_engine`) in web mode
+
 ## Architecture
 
 ### Desktop App (Electron)
@@ -189,7 +198,6 @@ The app bundles two deployment approaches:
   - `Backup-BC-Container.ps1` - Backup operations
   - `Get-BC-ContainerStatus.ps1` - Diagnostics
   - `DockerHelpers.psm1` - PowerShell module for Docker operations
-- **AI-Projects/OFFLINE-AI-CHATBOT/** - RAG engine for offline AI fallback in troubleshooting
 
 ## HNS Error Detection & Recovery
 
@@ -205,12 +213,34 @@ See [docs/hns-troubleshooting.md](docs/hns-troubleshooting.md) for full details.
 - **PowerShell scripts not running**: Must be in `scripts/` dir, execution policy must allow, **run as administrator** (required for HNS cmdlets)
 - **Settings not saving**: Check write permissions to `%APPDATA%/bc-container-manager/settings.json`
 
+## Environment Variables
+
+This is a desktop app, so most config lives in `%APPDATA%/bc-container-manager/settings.json` rather than `.env` files. Relevant env vars for development:
+
+| Variable | Scope | Purpose |
+|----------|-------|---------|
+| `ANTHROPIC_API_KEY` | Dev only | Falls back when `anthropicApiKey` is not set in app settings (useful for `npm run electron:dev`) |
+| `NODE_ENV` | Build | Electron's `main.js` checks for `development` to enable DevTools |
+
+App settings (stored in `settings.json`, not env):
+- `anthropicApiKey` — Claude API key for troubleshooting
+- `backupRoot` — Backup directory path
+- `autoRefreshInterval` — Dashboard refresh rate (seconds)
+
 ## CI/CD
 
 GitHub Actions (`.github/workflows/`):
 - `build-test.yml` — Windows runner, Node 20, type-check, tests, electron:pack
 - `ci.yml` — Lint and build checks
 - `release.yml` — Release automation
+
+## Before Committing
+
+1. `npm run lint` — fix ESLint errors
+2. `npm test` — Jest suite must pass
+3. `npm run build` — Next.js static export must succeed before any Electron packaging
+4. No `anthropicApiKey`, passwords, or API tokens in source or test fixtures
+5. PowerShell scripts in `scripts/` stay self-contained — no hard-coded paths outside `%APPDATA%`
 
 ## Cluster
 Apps
