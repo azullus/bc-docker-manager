@@ -15,7 +15,7 @@
     - Minimum 16GB RAM (32GB+ recommended)
 
 .FEATURES
-    - Version selection menu (BC 13-27, Latest, Next Minor, Next Major)
+    - Version selection menu (BC 13-28, Latest, Next Minor, Next Major)
     - Version-based container naming (bcserver-bc25, bcserver-latest, etc.)
     - Version-based port allocation (prevents conflicts between versions)
     - Automated daily backup with scheduled task (02:00, 7-day retention)
@@ -207,10 +207,11 @@ function Get-BCVersionSelection {
         12 = @{ Version = "24"; Name = "BC 24"; Preview = $false }
         13 = @{ Version = "25"; Name = "BC 25 (LTS)"; Preview = $false }
         14 = @{ Version = "26"; Name = "BC 26"; Preview = $false }
-        15 = @{ Version = "27"; Name = "BC 27 (Current)"; Preview = $false }
-        16 = @{ Version = "Latest"; Name = "Latest"; Preview = $false }
-        17 = @{ Version = "NextMinor"; Name = "Next Minor (Preview)"; Preview = $true }
-        18 = @{ Version = "NextMajor"; Name = "Next Major (Preview)"; Preview = $true }
+        15 = @{ Version = "27"; Name = "BC 27"; Preview = $false }
+        16 = @{ Version = "28"; Name = "BC 28 (Current)"; Preview = $false }
+        17 = @{ Version = "Latest"; Name = "Latest"; Preview = $false }
+        18 = @{ Version = "NextMinor"; Name = "Next Minor (Preview)"; Preview = $true }
+        19 = @{ Version = "NextMajor"; Name = "Next Major (Preview)"; Preview = $true }
     }
 
     Write-Host ""

@@ -22,19 +22,21 @@ import { detectHNSError, HNSError } from '@/lib/hns-error-detector';
 import HNSErrorRecovery from '@/components/HNSErrorRecovery';
 import NetworkDiagnostics from '@/components/NetworkDiagnostics';
 
-// BC Version options matching Install-BC-Helper.ps1
+// BC Version options matching Install-BC-Helper.ps1.
+// Wave labels follow Microsoft's release calendar: W1 = April, W2 = October.
 const BC_VERSIONS = [
   { value: 'Latest', label: 'Latest', description: 'Most recent stable release' },
   { value: 'NextMinor', label: 'Next Minor', description: 'Preview of next minor version' },
   { value: 'NextMajor', label: 'Next Major', description: 'Preview of next major version' },
-  { value: '27', label: 'BC 27 (2025 W1)', description: '2025 Wave 1' },
-  { value: '26', label: 'BC 26 (2024 W2)', description: '2024 Wave 2' },
-  { value: '25', label: 'BC 25 (2024 W1)', description: '2024 Wave 1' },
-  { value: '24', label: 'BC 24 (2023 W2)', description: '2023 Wave 2' },
-  { value: '23', label: 'BC 23 (2023 W1)', description: '2023 Wave 1' },
-  { value: '22', label: 'BC 22 (2022 W2)', description: '2022 Wave 2' },
-  { value: '21', label: 'BC 21 (2022 W1)', description: '2022 Wave 1' },
-  { value: '20', label: 'BC 20', description: 'Older version' },
+  { value: '28', label: 'BC 28 (2026 W1)', description: '2026 Wave 1 — Current' },
+  { value: '27', label: 'BC 27 (2025 W2)', description: '2025 Wave 2' },
+  { value: '26', label: 'BC 26 (2025 W1)', description: '2025 Wave 1' },
+  { value: '25', label: 'BC 25 (2024 W2)', description: '2024 Wave 2 — LTS' },
+  { value: '24', label: 'BC 24 (2024 W1)', description: '2024 Wave 1' },
+  { value: '23', label: 'BC 23 (2023 W2)', description: '2023 Wave 2' },
+  { value: '22', label: 'BC 22 (2023 W1)', description: '2023 Wave 1' },
+  { value: '21', label: 'BC 21 (2022 W2)', description: '2022 Wave 2' },
+  { value: '20', label: 'BC 20 (2022 W1)', description: '2022 Wave 1' },
   { value: '19', label: 'BC 19', description: 'Older version' },
   { value: '18', label: 'BC 18', description: 'Older version' },
   { value: '17', label: 'BC 17', description: 'Older version' },
