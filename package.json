@@ -47,7 +47,7 @@
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.3",
-    "eslint-config-next": "^16.1.6",
+    "eslint-config-next": "^16.2.4",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "postcss": "^8.4.49",
