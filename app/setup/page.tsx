@@ -19,11 +19,11 @@ import {
 import { isElectron, openExternal } from '@/lib/electron-api';
 
 interface SetupStatus {
-  docker: 'checking' | 'installed' | 'not_installed' | 'error';
-  dockerRunning: 'checking' | 'running' | 'stopped' | 'error';
-  bcContainerHelper: 'checking' | 'installed' | 'not_installed' | 'error';
-  hyperV: 'checking' | 'enabled' | 'disabled' | 'error';
-  wsl: 'checking' | 'installed' | 'not_installed' | 'error';
+  docker: 'checking' | 'installed' | 'not_installed' | 'unknown' | 'error';
+  dockerRunning: 'checking' | 'running' | 'stopped' | 'unknown' | 'error';
+  bcContainerHelper: 'checking' | 'installed' | 'not_installed' | 'unknown' | 'error';
+  hyperV: 'checking' | 'enabled' | 'disabled' | 'unknown' | 'error';
+  wsl: 'checking' | 'installed' | 'not_installed' | 'unknown' | 'error';
 }
 
 interface SystemInfo {
@@ -49,90 +49,64 @@ export default function SetupPage() {
   const checkAllStatus = async () => {
     setIsRefreshing(true);
 
-    // Check Docker installation and status
+    // No dedicated probe script exists for BcContainerHelper / Hyper-V / WSL
+    // yet, so any status we can't verify is reported as 'unknown' rather than
+    // being fake-flipped to green.
     if (isElectron() && window.electronAPI) {
       try {
-        // Check Docker via IPC
         const dockerResult = await window.electronAPI.docker.getDockerInfo();
         if (dockerResult.success && dockerResult.data) {
           setStatus(prev => ({
             ...prev,
             docker: 'installed',
-            dockerRunning: 'running'
+            dockerRunning: 'running',
+            bcContainerHelper: 'unknown',
+            hyperV: 'unknown',
+            wsl: 'unknown',
           }));
           setSystemInfo(prev => ({
             ...prev,
             dockerVersion: dockerResult.data?.version,
             containers: dockerResult.data?.containers,
+            memoryGB: 0,
           }));
-
-          // Get system memory - use a simpler approach that doesn't require whitelisted scripts
-          // Set to a placeholder since we can't easily get system memory without a dedicated script
-          // The Docker daemon also doesn't expose host memory info
-          setSystemInfo(prev => ({ ...prev, memoryGB: 16 })); // Assume 16GB as reasonable default
         } else {
           setStatus(prev => ({
             ...prev,
             docker: 'installed',
-            dockerRunning: 'stopped'
+            dockerRunning: 'stopped',
+            bcContainerHelper: 'unknown',
+            hyperV: 'unknown',
+            wsl: 'unknown',
           }));
-          // Still try to get memory even if Docker is stopped
           setSystemInfo(prev => ({ ...prev, memoryGB: 0 }));
         }
       } catch {
-        // Docker not responding - check if installed via PowerShell
-        try {
-          const result = await window.electronAPI.powershell.run('scripts/Check-Docker-Setup.ps1', ['-JsonOutput']);
-          if (result.exitCode === 0) {
-            const data = JSON.parse(result.stdout);
-            setStatus({
-              docker: data.dockerInstalled ? 'installed' : 'not_installed',
-              dockerRunning: data.dockerRunning ? 'running' : 'stopped',
-              bcContainerHelper: data.bcHelperInstalled ? 'installed' : 'not_installed',
-              hyperV: data.hyperVEnabled ? 'enabled' : 'disabled',
-              wsl: data.wslInstalled ? 'installed' : 'not_installed',
-            });
-            setSystemInfo({
-              dockerVersion: data.dockerVersion,
-              bcHelperVersion: data.bcHelperVersion,
-              memoryGB: data.memoryGB,
-            });
-          }
-        } catch {
-          // Fallback - assume basic checks
-          setStatus(prev => ({ ...prev, docker: 'not_installed', dockerRunning: 'stopped' }));
-        }
-      }
-    } else {
-      // Web mode - just check via API
-      try {
-        const response = await fetch('/api/containers');
-        const data = await response.json();
-        if (data.success) {
-          setStatus(prev => ({
-            ...prev,
-            docker: 'installed',
-            dockerRunning: 'running'
-          }));
-          // Web mode can't easily get system memory, set to unknown
-          setSystemInfo(prev => ({ ...prev, memoryGB: 0 }));
-        }
-      } catch {
-        setStatus(prev => ({ ...prev, docker: 'error' }));
+        setStatus(prev => ({
+          ...prev,
+          docker: 'error',
+          dockerRunning: 'error',
+          bcContainerHelper: 'unknown',
+          hyperV: 'unknown',
+          wsl: 'unknown',
+        }));
         setSystemInfo(prev => ({ ...prev, memoryGB: 0 }));
       }
+    } else {
+      // Web mode - all backend APIs are stubs returning canned success with
+      // no real environment signal, so nothing can be verified. Report every
+      // status as 'unknown' rather than misleading the user.
+      setStatus({
+        docker: 'unknown',
+        dockerRunning: 'unknown',
+        bcContainerHelper: 'unknown',
+        hyperV: 'unknown',
+        wsl: 'unknown',
+      });
+      setSystemInfo(prev => ({ ...prev, memoryGB: 0 }));
     }
 
-    // Simulate checks for other components (would use PowerShell in real impl)
-    setTimeout(() => {
-      setStatus(prev => ({
-        ...prev,
-        bcContainerHelper: prev.bcContainerHelper === 'checking' ? 'installed' : prev.bcContainerHelper,
-        hyperV: prev.hyperV === 'checking' ? 'enabled' : prev.hyperV,
-        wsl: prev.wsl === 'checking' ? 'installed' : prev.wsl,
-      }));
-      setIsRefreshing(false);
-    }, 1500);
+    setIsRefreshing(false);
   };
 
   // Initial status check on mount - calling async function that sets multiple states
@@ -198,6 +172,8 @@ export default function SetupPage() {
         return <XCircle className="w-6 h-6 text-red-400" />;
       case 'checking':
         return <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />;
+      case 'unknown':
+        return <XCircle className="w-6 h-6 text-gray-400" />;
       default:
         return <XCircle className="w-6 h-6 text-yellow-400" />;
     }
@@ -219,6 +195,8 @@ export default function SetupPage() {
         return 'Disabled';
       case 'checking':
         return 'Checking...';
+      case 'unknown':
+        return 'Unknown';
       default:
         return 'Unknown';
     }
@@ -236,6 +214,8 @@ export default function SetupPage() {
         return 'text-red-400';
       case 'checking':
         return 'text-blue-400';
+      case 'unknown':
+        return 'text-gray-400';
       default:
         return 'text-yellow-400';
     }
