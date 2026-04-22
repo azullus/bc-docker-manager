@@ -71,11 +71,16 @@ Test files in `__tests__/` directory using React Testing Library.
 
 ## Container Naming Convention
 
-The app filters for containers matching `bcserver-*` pattern:
+The app filters for Docker containers whose name contains `bc` (case-insensitive).
+Matches `bcserver-bc25`, `mybc-test`, `bc-preview`, etc. Defined in
+`electron/ipc-handlers.js`:
 
-```typescript
-const BC_CONTAINER_PATTERN = /^bcserver/;
+```js
+const BC_CONTAINER_PATTERN = /bc/i;
 ```
+
+The permissiveness is intentional — users name BC containers many different
+ways. A stricter `^bcserver` would miss common real-world conventions.
 
 ## API Design
 
