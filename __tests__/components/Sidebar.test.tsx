@@ -68,18 +68,22 @@ describe('Sidebar', () => {
   });
 
   describe('Rendering', () => {
-    it('should render the app logo and title', () => {
+    it('should render the app logo and title', async () => {
       render(<Sidebar />);
       expect(screen.getByText('BC Docker')).toBeInTheDocument();
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
-    it('should render the subtitle for web mode', () => {
+    it('should render the subtitle for web mode', async () => {
       mockIsElectron.mockReturnValue(false);
       render(<Sidebar />);
       expect(screen.getByText('Manager')).toBeInTheDocument();
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
-    it('should render web-mode navigation items', () => {
+    it('should render web-mode navigation items', async () => {
       mockIsElectron.mockReturnValue(false);
       render(<Sidebar />);
 
@@ -87,47 +91,59 @@ describe('Sidebar', () => {
       expect(screen.getByText('Docker Setup')).toBeInTheDocument();
       expect(screen.getByText('Backups')).toBeInTheDocument();
       expect(screen.getByText('Troubleshoot')).toBeInTheDocument();
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
-    it('should not render electron-only items in web mode', () => {
+    it('should not render electron-only items in web mode', async () => {
       mockIsElectron.mockReturnValue(false);
       render(<Sidebar />);
 
       expect(screen.queryByText('Create Container')).not.toBeInTheDocument();
       expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
   });
 
   describe('Active State', () => {
-    it('should highlight the Dashboard link when on /dashboard', () => {
+    it('should highlight the Dashboard link when on /dashboard', async () => {
       mockPathname = '/dashboard';
       render(<Sidebar />);
 
       const dashboardLink = screen.getByText('Dashboard').closest('a');
       expect(dashboardLink).toHaveClass('active');
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
-    it('should highlight the Troubleshoot link when on /troubleshoot', () => {
+    it('should highlight the Troubleshoot link when on /troubleshoot', async () => {
       mockPathname = '/troubleshoot';
       render(<Sidebar />);
 
       const troubleshootLink = screen.getByText('Troubleshoot').closest('a');
       expect(troubleshootLink).toHaveClass('active');
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
-    it('should not highlight Dashboard when on another page', () => {
+    it('should not highlight Dashboard when on another page', async () => {
       mockPathname = '/settings';
       render(<Sidebar />);
 
       const dashboardLink = screen.getByText('Dashboard').closest('a');
       expect(dashboardLink).not.toHaveClass('active');
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
   });
 
   describe('Docker Status', () => {
-    it('should show "Checking..." initially', () => {
+    it('should show "Checking..." initially', async () => {
       render(<Sidebar />);
       expect(screen.getByText('Checking...')).toBeInTheDocument();
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
 
     it('should show "Docker Connected" after successful check', async () => {
@@ -156,13 +172,15 @@ describe('Sidebar', () => {
   });
 
   describe('Navigation Links', () => {
-    it('should have correct hrefs for all navigation items', () => {
+    it('should have correct hrefs for all navigation items', async () => {
       render(<Sidebar />);
 
       expect(screen.getByText('Dashboard').closest('a')).toHaveAttribute('href', '/dashboard');
       expect(screen.getByText('Docker Setup').closest('a')).toHaveAttribute('href', '/setup');
       expect(screen.getByText('Backups').closest('a')).toHaveAttribute('href', '/backups');
       expect(screen.getByText('Troubleshoot').closest('a')).toHaveAttribute('href', '/troubleshoot');
+      await waitFor(() => expect(mockGetDockerInfo).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText('Docker Connected')).toBeInTheDocument());
     });
   });
 });
