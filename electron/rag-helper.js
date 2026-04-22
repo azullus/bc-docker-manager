@@ -6,6 +6,7 @@
  */
 
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { app } = require('electron');
 
@@ -13,18 +14,33 @@ const { app } = require('electron');
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 /**
- * Get the path to BC-specific HOWTO documents
- * In development: Use relative path from project root
- * In production: Use bundled resources path (extraResources)
+ * Get the path to BC-specific HOWTO documents.
+ * - Production: bundled via electron-builder extraResources.
+ * - Development: honors BC_HOWTO_PATH env var, otherwise probes known sibling
+ *   AZU-VAULT layouts. Falls back to an empty path (loadDocuments tolerates
+ *   a missing directory and returns an empty document set).
  */
 function getHowToPath() {
   if (app.isPackaged) {
-    // In production, HOWTOs are bundled via extraResources
     return path.join(process.resourcesPath, 'HOWTO', 'CONTAINERS');
-  } else {
-    // In development, use relative path from project root
-    return path.join(__dirname, '..', '..', '..', "HOWTO's", 'CONTAINERS');
   }
+  if (process.env.BC_HOWTO_PATH) {
+    return process.env.BC_HOWTO_PATH;
+  }
+  const candidates = [
+    // Windows dev: CosmicBytez/{AI-Projects-Workspace/bc-docker-manager, AZU-VAULT}
+    path.join(__dirname, '..', '..', '..', 'AZU-VAULT', "HOWTO's", 'CONTAINERS'),
+    // Linux code-server: /workspace/{bc-docker-manager, azu-vault}
+    path.join(__dirname, '..', '..', 'azu-vault', "HOWTO's", 'CONTAINERS'),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fsSync.existsSync(candidate)) return candidate;
+    } catch {
+      // Continue to next candidate
+    }
+  }
+  return candidates[0];
 }
 
 // Path to BC-specific HOWTO documents

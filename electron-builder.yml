@@ -33,6 +33,10 @@ extraResources:
       - "icon.png"
       - "icon.ico"
   # HOWTO documentation for RAG helper (offline AI fallback)
+  # Path is resolved on the Windows dev box where production builds run;
+  # assumes the CosmicBytez/{AI-Projects-Workspace/bc-docker-manager, AZU-VAULT}
+  # sibling layout. CI (windows-latest) checks out only bc-docker-manager and
+  # will skip this source silently.
   - from: "../../AZU-VAULT/HOWTO's/CONTAINERS/"
     to: HOWTO/CONTAINERS/
     filter:
