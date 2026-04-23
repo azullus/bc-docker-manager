@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-23
+
+### Added
+- **BC 28 support** (2026 Wave 1) — newest Business Central version is now selectable in the Create Container wizard and the `Install-BC-Helper.ps1` version menu.
+- `/api/docker/info` web-mode stub route — sidebar health probe now returns a 501 with a documented error message instead of 404ing on every navigation.
+- `BC_HOWTO_PATH` environment variable override for the offline RAG helper in dev mode.
+- Claude Code PR-review GitHub Action for automated code review on pull requests.
+- Dependabot configuration for automated dependency update PRs.
+- Auto-fix GitHub Actions workflow for lint corrections.
+- Stack, Environment Variables, and pre-commit-checklist sections in CLAUDE.md.
+
+### Fixed
+- **Setup page fake-green bug** — BcContainerHelper / Hyper-V / WSL tiles were flipping from "Checking..." to "Installed" / "Enabled" after 1.5s regardless of whether anything was probed. They now honestly report "Unknown" until a real probe is added.
+- **Backups restore path handling** — now uses the validated resolved path (aligned with `backups:delete`) instead of the raw caller input, closing a TOCTOU-ish inconsistency.
+- **RAG helper dev-mode path** — was pointing at a location that didn't exist in either the Windows or Linux workspace layout; now probes both known sibling AZU-VAULT layouts and supports `BC_HOWTO_PATH` override.
+- **Sidebar test React `act()` warnings** — tests now wait for the Docker-status effect to settle before returning, eliminating the console noise that masked real warnings.
+- **BC release-wave labels** — BC 21 through BC 27 were all shifted by one wave (e.g., BC 27 showed "2025 W1" but Microsoft released it as 2025 W2). Corrected across the UI dropdown and PowerShell menu.
+- Next.js version note in CLAUDE.md (14 → 16).
+
+### Changed
+- **Next.js 14 → 16** (App Router features upgraded; same routing structure).
+- **Electron 35 → 41** (security + feature improvements).
+- **Jest 29 → 30** (no config changes required; all 257 tests pass unchanged).
+- **Claude model** upgraded to `claude-sonnet-4-6` for AI troubleshooting.
+- HNS troubleshooting documentation moved from the repo root into `docs/hns-troubleshooting.md`.
+- CLAUDE.md now lives at the project root (Claude Code auto-discovery).
+- GitHub Actions workflows standardized and switched to the CosmicBytez self-hosted runner where appropriate.
+- CLAUDE.md `BC_CONTAINER_PATTERN` docs corrected to match the actual `/bc/i` regex, with an explanation of why the permissiveness is intentional.
+
+### Removed
+- **Dead code** (781 lines): `lib/docker-api.ts`, `lib/ai-client.ts`, and the orphaned test file. Never imported; superseded by the Electron IPC handlers in `electron/ipc-handlers.js`.
+- Fake 1.5s `setTimeout` in the setup page that flipped tile statuses to green without probing.
+
+### Security
+- **Critical**: `protobufjs` 7.5.4 → 7.5.5 ([GHSA-xq3m-2v4x-88gg](https://github.com/advisories/GHSA-xq3m-2v4x-88gg) — arbitrary code execution; pulled transitively by `dockerode`).
+- **High**: Next.js patched for DoS advisory [GHSA-q4gf-8mx6-v5v3](https://github.com/advisories/GHSA-q4gf-8mx6-v5v3).
+- **High**: `@xmldom/xmldom` 0.8.11 → 0.8.13 (XML injection via unsafe CDATA serialization; dev dep via electron-builder).
+- **High**: `lodash` 4.17.23 → 4.18.1 (code injection + prototype pollution; dev dep).
+- **Moderate**: `axios` 1.13.5 → 1.15.2 (NO_PROXY SSRF bypass + cloud-metadata exfiltration via header injection).
+- **Moderate**: `follow-redirects` → 1.16.0 (auth header leak on cross-domain redirects).
+- **Low (dev-only)**: `jest-environment-jsdom` 29 → 30 clears the remaining `jsdom` / `http-proxy-agent` / `@tootallnate/once` chain.
+- Additional transitive patches: `flatted`, `picomatch`, `tar`, `brace-expansion`.
+
+### Known advisories (tracked, not exploitable in this application)
+- `uuid <14.0.0` ([GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq), moderate, CVSS 0) — missing buffer bounds check in `v3`/`v5`/`v6` when a pre-allocated buffer is provided. Reaches us via `dockerode` (which declares `uuid ^10.0.0`). Not reachable in this app — `dockerode` generates IDs via `v4()` without a `buf` argument. Will clear automatically once `dockerode` relaxes its `uuid` range upstream.
+
 ## [1.2.0] - 2025-01-15
 
 ### Security
