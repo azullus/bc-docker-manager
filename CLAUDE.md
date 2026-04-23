@@ -243,9 +243,10 @@ GitHub Actions (`.github/workflows/`):
 
 1. `npm run lint` — fix ESLint errors
 2. `npm test` — Jest suite must pass
-3. `npm run build` — Next.js static export must succeed before any Electron packaging
-4. No `anthropicApiKey`, passwords, or API tokens in source or test fixtures
-5. PowerShell scripts in `scripts/` stay self-contained — no hard-coded paths outside `%APPDATA%`
+3. `npm run build` — Next.js web-mode build (dynamic API routes) must succeed
+4. `npm run build:electron` — Next.js **static export** (`output: 'export'`) must succeed. This is what `release.yml` runs and it enforces the `dynamic = 'force-static'` + GET-only constraint for API routes. Running only `npm run build` is NOT sufficient — it will pass locally while the release build fails on CI.
+5. No `anthropicApiKey`, passwords, or API tokens in source or test fixtures
+6. PowerShell scripts in `scripts/` stay self-contained — no hard-coded paths outside `%APPDATA%`
 
 ## Cluster
 Apps

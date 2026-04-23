@@ -5,10 +5,16 @@
  * Electron desktop app (where the main process owns the Docker socket via
  * dockerode). This endpoint exists so the sidebar health probe doesn't 404
  * in web mode.
+ *
+ * Statically exported (`dynamic = 'force-static'`) so the Electron build
+ * (`output: 'export'`) can include it without error.
  */
 
 import { NextResponse } from 'next/server';
 import type { ApiResponse } from '@/lib/types';
+
+export const dynamic = 'force-static';
+export const revalidate = false;
 
 interface DockerInfo {
   version: string;
@@ -21,5 +27,5 @@ export async function GET() {
     success: false,
     error: 'Web mode: Docker API access not configured. Please use the Electron desktop app for Docker operations.',
   };
-  return NextResponse.json(response, { status: 501 });
+  return NextResponse.json(response);
 }
